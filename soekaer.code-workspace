@@ -1,0 +1,25 @@
+{
+	"folders": [
+		{
+			"name": "🏠",
+			"path": ".",
+		},
+		{
+			"name": "👉 app",
+			"path": "./app",
+		},
+		{
+			"name": "👉 shared",
+			"path": "./shared",
+		},
+		{
+			"name": "👉 functions",
+			"path": "./functions",
+		},
+	],
+	"settings": {
+		"unocss.root": [
+			"app",
+		],
+	},
+}

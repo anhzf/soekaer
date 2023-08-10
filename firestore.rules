@@ -1,0 +1,57 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function grant(wantedPermission, wantedScopes) {
+      // expect Map with keys as method and values as array of fields or '*'
+      let grantedMethods = get(/sinthesis_roles/$(request.auth.token.role)).permissions[wantedPermission];
+      // expect [method, value?]
+      let wanted = wantedScopes.split('=');
+      let wantedMethod = wanted[0];
+      // expect value to be comma separated list of fields or '*'
+      let wantedValue = wanted[1] is string ? wanted[1] : '*';
+      let wantedFields = wantedValue.split(',');
+      // expect array of fields or '*'
+      let granted = grantedMethods[wantedMethod];
+      return granted == '*'
+        || wantedFields.hasAny(['*'])
+        || wantedFields.hasOnly(granted);
+    }
+
+    match /{documents=**} {
+      allow read: if true;
+      allow write: if request.auth != null;
+    }
+
+    match /sinthesis_config/{research} {
+      allow write: if false;
+      allow list: if false;
+    }
+    
+    match /sinthesis_seeds/{role} {
+    	allow create: if true;
+      allow list: if request.query.limit <= 5;
+    }
+    
+    match /sinthesis_users/{user}/{documents=**} {
+      function isOwner() {
+        return request.auth.uid == user;
+      }
+
+      allow write: if isOwner();
+    }
+    
+    match /sinthesis_roles/{role} {
+    	allow create: if true;
+    }
+    
+    match /sinthesis_researches/{research} {
+      allow create: if grant('research', 'create');
+    }
+
+    match /sinthesis_devices/{research} {
+      allow write: if true;
+      allow read: if true;
+    }
+  }
+}

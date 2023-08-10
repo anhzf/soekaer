@@ -1,0 +1,11 @@
+@use '@material/web/tokens';
+@import 'tokens.css';
+
+:root {
+  @each $token, $value in tokens.md-sys-shape-values() {
+    --md-sys-shape-#{$token}: #{$value};
+  }
+  @each $token, $value in tokens.md-sys-state-values() {
+    --md-sys-state-#{$token}: #{$value};
+  }
+}
