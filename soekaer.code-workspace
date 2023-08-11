@@ -5,12 +5,12 @@
 			"path": ".",
 		},
 		{
-			"name": "👉 app",
-			"path": "./app",
-		},
-		{
 			"name": "👉 shared",
 			"path": "./shared",
+		},
+		{
+			"name": "👉 app",
+			"path": "./app",
 		},
 		{
 			"name": "👉 functions",

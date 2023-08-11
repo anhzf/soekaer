@@ -25,7 +25,7 @@ export abstract class Model<T extends Object> {
   }
 
   get id() {
-    return this._id;
+    return this._id || '';
   }
 
   get data() {

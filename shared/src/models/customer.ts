@@ -10,6 +10,8 @@ export interface ICustomer extends Person {
 }
 
 export class Customer extends Model<ICustomer> {
+  static DEFAULT_ORIGIN = 'independent';
+
   static create(data: Pick<ICustomer, 'name' | 'origin' | 'whatsAppNumber'>) {
     return new Customer({
       ...data,
@@ -22,7 +24,7 @@ export class Customer extends Model<ICustomer> {
     return Customer.create({
       name: '',
       whatsAppNumber: '',
-      origin: '',
+      origin: Customer.DEFAULT_ORIGIN,
     }).data;
   }
 }

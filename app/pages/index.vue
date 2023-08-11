@@ -35,7 +35,7 @@ whenever(bpGtSm, () => {
 </script>
 
 <template>
-  <div class="w-full h-100svh surface-container on-surface-text flex children:rounded-$md-sys-shape-corner-large">
+  <div class="w-full h-100dvh surface-container on-surface-text flex children:rounded-$md-sys-shape-corner-large">
     <nav-item-template v-slot="{ label, icon, to, onClick }">
       <li class="inline-full inline-flex flex-col">
         <component :is="to ? NuxtLink : 'button'" v-bind="{ to, onClick }" class="nav-item">
@@ -98,7 +98,7 @@ whenever(bpGtSm, () => {
     </transition>
 
     <div class="grow relative overflow-y-auto">
-      <NuxtPage class="children:pl-6 children:sm:pl-3 children:pr-6 py-6" />
+      <NuxtPage class="children:pl-4 children:sm:pl-3 children:pr-4 sm:children:pr-6 py-6" />
     </div>
   </div>
 </template>

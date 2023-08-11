@@ -15,6 +15,7 @@ interface Props {
     iconTrailing?: boolean;
     [key: string]: any;
   };
+  fullWidth?: boolean;
 }
 
 defineProps<Props>();
@@ -36,7 +37,7 @@ defineProps<Props>();
           </slot>
         </div>
 
-        <h1 class="shrink text-headline-large line-clamp-1 text-ellipsis">{{ title }}</h1>
+        <h2 class="shrink text-headline-large line-clamp-1 text-ellipsis">{{ title }}</h2>
       </div>
 
       <div class="shrink-0 flex gap-2">
@@ -59,8 +60,10 @@ defineProps<Props>();
       </div>
     </header>
 
-    <div class="overflow-hidden w-full max-w-screen-xl mx-auto">
+    <div class="overflow-hidden" :class="{ 'w-full max-w-screen-xl mx-auto': !fullWidth }">
       <slot />
+
+      <div class="h-20"></div>
     </div>
   </div>
 </template>

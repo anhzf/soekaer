@@ -35,7 +35,7 @@ export type TransactionStatus = typeof TransactionStatuses[number];
 
 export interface ITransaction {
   customer: {
-    ref: Reference<Customer>;
+    ref?: Reference<Customer>;
     snapshot: Pick<ICustomer, 'name' | 'whatsAppNumber'> & Partial<ICustomer>;
   };
   status: TransactionStatus;
@@ -71,25 +71,5 @@ export class Transaction extends Model<ITransaction> {
       createdAt: now(),
       updatedAt: now(),
     });
-  }
-
-  static empty() {
-    return Transaction.create({
-      customer: {
-        ref: {
-          path: 'customers',
-          id: '',
-        },
-        snapshot: Customer.empty(),
-      },
-      items: [],
-      createdBy: {
-        ref: {
-          path: 'users',
-          id: '',
-        },
-        snapshot: User.empty(),
-      },
-    }).data;
   }
 }

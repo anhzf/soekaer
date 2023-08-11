@@ -1,8 +1,8 @@
-export const getVModelBindings = <T>(refValue: T) => ({
-  onInput: (e: Event) => {
-    console.log(e);
+import { Ref } from 'vue';
 
-    refValue = (e.target as HTMLInputElement).value as unknown as T;
+export const getVModelBindings = <T>(ref: Ref<T>) => ({
+  onInput: (e: Event) => {
+    ref.value = (e.target as HTMLInputElement).value as unknown as T;
   },
-  modelValue: refValue
-})
+  value: ref.value,
+});
