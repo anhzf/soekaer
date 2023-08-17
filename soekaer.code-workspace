@@ -21,5 +21,8 @@
 		"unocss.root": [
 			"app",
 		],
+		"conventionalCommits.scopes": [
+			"app"
+		],
 	},
 }

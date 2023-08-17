@@ -1,3 +1,10 @@
+<script lang="ts">
+import '@material/web/checkbox/checkbox';
+import '@material/web/iconbutton/icon-button';
+import '@material/web/chips/chip-set';
+import '@material/web/chips/filter-chip';
+</script>
+
 <script lang="ts" setup>
 import { TransactionStatus } from '@anhzf-soekaer/shared/models';
 import { Transaction, TransactionStatuses } from '@anhzf-soekaer/shared/models';

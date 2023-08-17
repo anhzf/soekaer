@@ -1,4 +1,11 @@
 <script lang="ts">
+import '@material/web/button/filled-button';
+import '@material/web/button/outlined-button';
+import '@material/web/checkbox/checkbox';
+import '@material/web/iconbutton/icon-button';
+import '@material/web/progress/circular-progress';
+import '@material/web/textfield/outlined-text-field';
+
 const useCustomers = (filter: Ref<string>) => {
   const { data, execute, ...UseLazyFetchReturn } = useLazyFetch('/dev/data/customers.csv', {
     default: (): Customer[] => [],
@@ -30,11 +37,10 @@ const useCustomers = (filter: Ref<string>) => {
 </script>
 
 <script lang="ts" setup>
-import { Transaction } from '@anhzf-soekaer/shared/models';
-import { Customer } from '@anhzf-soekaer/shared/models';
+import { Customer, Transaction } from '@anhzf-soekaer/shared/models';
 import type { MdMenu, MdOutlinedTextField } from '@material/web/all';
 import { Timestamp, doc } from 'firebase/firestore';
-import { uploadBytes, ref as storageRef } from 'firebase/storage';
+import { ref as storageRef, uploadBytes } from 'firebase/storage';
 import { useFirebaseStorage } from 'vuefire';
 
 const itemImageInputRef = ref<HTMLInputElement>();
@@ -175,9 +181,9 @@ watch(() => customerOptions.value.length, (hasOptions) => {
                   </md-outlined-text-field>
                 </field-wrapper>
 
-                <md-standard-icon-button v-if="customerField.id" @click="clearCustomer">
+                <md-icon-button v-if="customerField.id" @click="clearCustomer">
                   <md-icon>delete</md-icon>
-                </md-standard-icon-button>
+                </md-icon-button>
               </div>
 
               <md-menu ref="customerSelectionRef" :anchor="customerNameFieldRef" type="option" quick default-focus="NONE"
@@ -198,7 +204,7 @@ watch(() => customerOptions.value.length, (hasOptions) => {
 
             <div class="flex items-center gap-4">
               <field-wrapper v-model="customerField.origin" v-slot="bindings">
-                <label class="inline-flex items-center cursor-pointer">
+                <label class="inline-flex items-center gap-2 cursor-pointer">
                   <md-checkbox :checked="customerField.origin === Customer.DEFAULT_ORIGIN"
                     @input="customerField.origin = $event.target.checked ? '' : Customer.DEFAULT_ORIGIN"
                     :disabled="customerField.id" required></md-checkbox>

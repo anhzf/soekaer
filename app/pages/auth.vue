@@ -1,3 +1,9 @@
+<script lang="ts">
+import '@material/web/textfield/outlined-text-field';
+import '@material/web/button/filled-button';
+import '@material/web/iconbutton/icon-button';
+</script>
+
 <script lang="ts" setup>
 // import { getVModelBindings } from '#imports';
 const router = useRouter();
@@ -32,9 +38,9 @@ const onSubmit = (e: Event) => {
         <div class="px-4 py-8 flex flex-col gap-8">
           <md-outlined-text-field label="Email" name="email" type="email"></md-outlined-text-field>
           <md-outlined-text-field label="Password" name="password" :type="showPassword ? 'text' : 'password'">
-            <md-standard-icon-button slot="trailingicon" @click="toggleShowPassword()">
+            <md-icon-button slot="trailingicon" @click="toggleShowPassword()">
               <md-icon>{{ showPassword ? 'visibility_off' : 'visibility' }}</md-icon>
-            </md-standard-icon-button>
+            </md-icon-button>
           </md-outlined-text-field>
         </div>
 

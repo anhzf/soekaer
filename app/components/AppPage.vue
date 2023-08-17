@@ -1,3 +1,7 @@
+<script lang="ts">
+import '@material/web/iconbutton/icon-button';
+</script>
+
 <script lang="ts" setup>
 import type { Component } from 'vue';
 import type { RouteLocationRaw } from 'vue-router';
@@ -28,12 +32,12 @@ defineProps<Props>();
       <div class="flex gap-4">
         <div class="shrink-0 flex gap-2">
           <slot name="header-start" v-bind="toggleShowDrawer">
-            <md-standard-icon-button v-if="menuBtn" @click="toggleShowDrawer()">
+            <md-icon-button v-if="menuBtn" @click="toggleShowDrawer()">
               <md-icon>menu</md-icon>
-            </md-standard-icon-button>
-            <md-standard-icon-button v-if="backBtn" @click="$router.back()">
+            </md-icon-button>
+            <md-icon-button v-if="backBtn" @click="$router.back()">
               <md-icon>arrow_back</md-icon>
-            </md-standard-icon-button>
+            </md-icon-button>
           </slot>
         </div>
 
