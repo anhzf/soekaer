@@ -29,6 +29,9 @@ devDependencies:
   '@vueuse/nuxt':
     specifier: ^10.3.0
     version: 10.3.0(nuxt@3.6.5)(vue@3.3.4)
+  csv-parse:
+    specifier: ^5.4.0
+    version: 5.4.0
   firebase:
     specifier: ^10.1.0
     version: 10.1.0(react-native@0.72.3)
@@ -5640,6 +5643,10 @@ packages:
 
   /csstype@3.1.2:
     resolution: {integrity: sha512-I7K1Uu0MBPzaFKg4nI5Q7Vs2t+3gWWW648spaF+Rg7pI9ds18Ugn+lvg4SHczUdKlHI5LWBXyqfS8+DufyBsgQ==}
+    dev: true
+
+  /csv-parse@5.4.0:
+    resolution: {integrity: sha512-JiQosUWiOFgp4hQn0an+SBoV9IKdqzhROM0iiN4LB7UpfJBlsSJlWl9nq4zGgxgMAzHJ6V4t29VAVD+3+2NJAg==}
     dev: true
 
   /cuint@0.2.2:

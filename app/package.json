@@ -17,6 +17,7 @@
     "@unocss/nuxt": "^0.54.1",
     "@vueuse/core": "^10.3.0",
     "@vueuse/nuxt": "^10.3.0",
+    "csv-parse": "^5.4.0",
     "firebase": "^10.1.0",
     "firebase-admin": "^11.10.1",
     "firebase-functions": "^4.4.1",

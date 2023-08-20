@@ -1,6 +1,7 @@
 <script lang="ts">
 import '@material/web/button/filled-button';
 import '@material/web/iconbutton/icon-button';
+import { objectOmit } from '@vueuse/core';
 </script>
 
 <script lang="ts" setup>
@@ -50,14 +51,20 @@ defineProps<Props>();
           <template v-if="trailingBtn">
             <NuxtLink v-if="trailingBtn.to" :to="trailingBtn.to" custom v-slot="{ href, navigate }">
               <component :is="trailingBtn.component || 'md-filled-button'" :href="href"
-                :trailing-icon="trailingBtn.iconTrailing" @click="navigate">
-                <md-icon v-if="trailingBtn.icon" slot="icon">{{ trailingBtn.icon }}</md-icon>
+                :trailing-icon="trailingBtn.iconTrailing" @click="navigate"
+                v-bind="objectOmit(trailingBtn, ['to', 'component', 'iconTrailing', 'icon', 'label'])">
+                <md-icon v-if="trailingBtn.icon" slot="icon">
+                  {{ trailingBtn.icon }}
+                </md-icon>
                 {{ trailingBtn.label }}
               </component>
             </NuxtLink>
             <NuxtLink v-else>
-              <component :is="trailingBtn.component || 'md-filled-button'" :trailing-icon="trailingBtn.iconTrailing">
-                <md-icon v-if="trailingBtn.icon" slot="icon">{{ trailingBtn.icon }}</md-icon>
+              <component :is="trailingBtn.component || 'md-filled-button'" :trailing-icon="trailingBtn.iconTrailing"
+                v-bind="objectOmit(trailingBtn, ['to', 'component', 'iconTrailing', 'icon', 'label'])">
+                <md-icon v-if="trailingBtn.icon" slot="icon">
+                  {{ trailingBtn.icon }}
+                </md-icon>
                 {{ trailingBtn.label }}
               </component>
             </NuxtLink>
