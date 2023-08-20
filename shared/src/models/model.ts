@@ -3,6 +3,8 @@ import { now } from './_adapter';
 export abstract class Model<T extends Object> {
   protected _id?: string;
 
+  private _changes: Partial<T> = {};
+
   constructor(
     protected _data: T,
     attrs?: { id?: string }
@@ -16,6 +18,8 @@ export abstract class Model<T extends Object> {
     if ('updatedAt' in this._data) {
       this._data.updatedAt = now();
     }
+
+    this._changes[propName] = value;
 
     return this;
   }

@@ -1,15 +1,11 @@
 <script lang="ts">
+import { Transaction, TransactionStatus, TRANSACTION_STATUSES } from '@anhzf-soekaer/shared/models';
 import '@material/web/checkbox/checkbox';
-import '@material/web/iconbutton/icon-button';
 import '@material/web/chips/chip-set';
 import '@material/web/chips/filter-chip';
-</script>
-
-<script lang="ts" setup>
-import { TransactionStatus } from '@anhzf-soekaer/shared/models';
-import { Transaction, TransactionStatuses } from '@anhzf-soekaer/shared/models';
-import { UseTimeAgoMessages, UseTimeAgoUnit, UseTimeAgoUnitNamesDefault, formatTimeAgo } from '@vueuse/core';
-import { doc, Timestamp } from 'firebase/firestore';
+import '@material/web/iconbutton/icon-button';
+import { UseTimeAgoMessages, UseTimeAgoUnitNamesDefault, formatTimeAgo } from '@vueuse/core';
+import { Timestamp, doc } from 'firebase/firestore';
 
 const timeAgoMessages: UseTimeAgoMessages<UseTimeAgoUnitNamesDefault> = {
   justNow: 'baru saja',
@@ -57,8 +53,10 @@ const displayTransactionTime = (date: Date) => {
     });
   }
 }
+</script>
 
-const transactions = ref(Array.from({ length: 13 }, (_, k) => new Transaction({
+<script lang="ts" setup>
+const transactions = ref(Array.from({ length: 50 }, (_, k) => new Transaction({
   customer: {
     ref: doc(refs().customers, '1'),
     snapshot: {
@@ -66,8 +64,7 @@ const transactions = ref(Array.from({ length: 13 }, (_, k) => new Transaction({
       whatsAppNumber: '6281234567890',
     },
   },
-  status: (['pending', 'wip', 'done'] as TransactionStatus[]).at(Math.random() * 3)!,
-  // status: TransactionStatuses.at(Math.random() * TransactionStatuses.length)!,
+  status: TRANSACTION_STATUSES.at(Math.random() * TRANSACTION_STATUSES.length)!,
   items: [
     {
       name: 'Fast Clean',
@@ -85,7 +82,13 @@ const transactions = ref(Array.from({ length: 13 }, (_, k) => new Transaction({
   updatedAt: Timestamp.fromDate(new Date()),
 }, { id: k.toString() })));
 
-const sortedTransactions = computed(() => transactions.value.sort((a, b) => b.get('createdAt').toMillis() - a.get('createdAt').toMillis()));
+const filteredSortedTransactions = computed(() => transactions.value
+  .filter(transaction => (['pending', 'wip', 'task-done'] as TransactionStatus[]).includes(transaction.get('status')))
+  .sort((a, b) => b.get('createdAt').toMillis() - a.get('createdAt').toMillis()));
+
+useSeoMeta({
+  title: 'Transaksi',
+});
 </script>
 
 <template>
@@ -197,9 +200,9 @@ const sortedTransactions = computed(() => transactions.value.sort((a, b) => b.ge
         <div class="flex flex-col gap-2">
           <div class="flex items-center gap-2">
             <h2 class="text-title-large">Daftar transaksi</h2>
-            <md-standard-icon-button>
+            <md-icon-button>
               <md-icon>tune</md-icon>
-            </md-standard-icon-button>
+            </md-icon-button>
           </div>
 
           <md-chip-set type="filter">
@@ -217,7 +220,8 @@ const sortedTransactions = computed(() => transactions.value.sort((a, b) => b.ge
             </tr>
           </thead>
           <tbody>
-            <tr v-for="transaction in sortedTransactions" :key="transaction.id" class="relative group text-body-medium">
+            <tr v-for="transaction in filteredSortedTransactions" :key="transaction.id"
+              class="relative group text-body-medium">
               <td class="px-4 py-3 w-50 text-left text-body-small on-surface-variant-text">
                 {{ displayTransactionTime(transaction.get('createdAt').toDate()) }}
               </td>
@@ -226,12 +230,13 @@ const sortedTransactions = computed(() => transactions.value.sort((a, b) => b.ge
               <td class="px-4 py-3 w-40">
                 <div class="flex justify-center gap-2">
                   <span
-                    class="relative secondary-container on-secondary-container-text flex items-center gap-2 px-3 py-1 rounded-$md-sys-shape-corner-small cursor-default">
+                    class="relative text-label-medium line-clamp-1 flex items-center gap-2 px-3 py-1 rounded-$md-sys-shape-corner-small border border-$md-sys-color-outline-variant cursor-default">
                     {{ transaction.get('status') }}
-                    <md-ripple />
                   </span>
                 </div>
               </td>
+              <NuxtLink :to="{ name: 'index-transaction-transactionId', params: { transactionId: transaction.id } }"
+                class="absolute inset-0"></NuxtLink>
               <md-ripple />
             </tr>
           </tbody>

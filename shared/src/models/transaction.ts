@@ -4,12 +4,13 @@ import { Customer, ICustomer } from './customer';
 import { Model } from './model';
 import { IUser, User } from './user';
 
-export const TransactionStatuses = [
+export const TRANSACTION_STATUSES = [
   'pending',
   'wip',
-  'done',
+  'task-done',
   'paid',
   'delivered',
+  'done',
   'canceled',
 ] as const;
 
@@ -31,7 +32,7 @@ export interface TransactionItem {
 
 export type PaymentMethod = typeof PAYMENT_METHODS[number];
 
-export type TransactionStatus = typeof TransactionStatuses[number];
+export type TransactionStatus = typeof TRANSACTION_STATUSES[number];
 
 export interface ITransaction {
   customer: {
@@ -40,6 +41,7 @@ export interface ITransaction {
   };
   status: TransactionStatus;
   items: TransactionItem[];
+  estimatedFinishedAt?: DateTime;
   discount?: {
     labels: string[];
     amountValue?: number;
@@ -71,5 +73,17 @@ export class Transaction extends Model<ITransaction> {
       createdAt: now(),
       updatedAt: now(),
     });
+  }
+
+  get itemCount() {
+    return this.data.items.reduce((acc, item) => acc + item.qty, 0);
+  }
+
+  get services() {
+    return this.data.items.reduce((acc, item) => [...acc, item.name], [] as string[]);
+  }
+
+  get totalPrice() {
+    return this.data.items.reduce((acc, item) => acc + item.price * item.qty, 0);
   }
 }
