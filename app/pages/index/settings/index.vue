@@ -1,4 +1,7 @@
 <script lang="ts" setup>
+useSeoMeta({
+  title: 'Pengaturan'
+});
 </script>
 
 <template>

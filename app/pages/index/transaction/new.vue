@@ -1,16 +1,32 @@
 <script lang="ts">
+import { Customer, Transaction } from '@anhzf-soekaer/shared/models';
+import type { MdMenu, MdOutlinedTextField } from '@material/web/all';
 import '@material/web/button/filled-button';
 import '@material/web/button/outlined-button';
 import '@material/web/checkbox/checkbox';
+import '@material/web/chips/filter-chip';
+import '@material/web/chips/input-chip';
 import '@material/web/iconbutton/icon-button';
+import '@material/web/menu/menu';
+import '@material/web/menu/menu-item';
 import '@material/web/progress/circular-progress';
 import '@material/web/textfield/outlined-text-field';
+import { Timestamp, doc } from 'firebase/firestore';
+import { ref as storageRef, uploadBytes } from 'firebase/storage';
+import { useFirebaseStorage } from 'vuefire';
+
+interface Product {
+  name: string;
+  price: number;
+}
 
 const useCustomers = (filter: Ref<string>) => {
-  const { data, execute, ...UseLazyFetchReturn } = useLazyFetch('/dev/data/customers.csv', {
+  const MIN_FILTER_LENGTH = 3;
+  const { data, execute, ...useLazyFetchReturn } = useLazyFetch('/dev/data/customers.csv', {
     default: (): Customer[] => [],
     responseType: 'text',
     transform: (values: string) => values.split('\n')
+      .filter(Boolean)
       .map((row) => {
         const [id, name] = row.split(';');
         return new Customer({
@@ -24,28 +40,70 @@ const useCustomers = (filter: Ref<string>) => {
     immediate: false,
   });
 
-  const filteredData = computed(() => (console.count('filtering'), filter.value?.length >= 3
+  const filteredData = computed(() => (console.count('filtering customer'), filter.value?.length >= MIN_FILTER_LENGTH
     ? data.value
       .filter(customer => customer.get('name')?.toLowerCase()
         .includes(filter.value.toLowerCase()))
     : []));
 
-  watchOnce(() => filter.value.length >= 3, () => execute());
+  watchOnce(() => filter.value.length >= MIN_FILTER_LENGTH, () => execute());
 
-  return { ...UseLazyFetchReturn, execute, data: filteredData, all: data };
+  return { ...useLazyFetchReturn, execute, data: filteredData, all: data };
 }
+
+const useOrigins = (filter: Ref<string>) => {
+  const MIN_FILTER_LENGTH = 1;
+  const { data, execute, ...useLazyFetchReturn } = useLazyFetch('/dev/data/origins.csv', {
+    default: (): string[] => [],
+    responseType: 'text',
+    transform: (values: string) => Array.from(new Set(values.split('\n'))).filter(Boolean),
+    immediate: false,
+  });
+
+  const filteredData = computed(() => (console.count('filtering origin'), filter.value?.length >= MIN_FILTER_LENGTH
+    ? data.value
+      .filter(origin => origin.toLowerCase()
+        .includes(filter.value.toLowerCase()))
+    : []));
+
+  watchOnce(() => filter.value.length >= MIN_FILTER_LENGTH, () => execute());
+
+  return { ...useLazyFetchReturn, execute, data: filteredData, all: data };
+}
+
+const useProducts = (filter: Ref<string>) => {
+  const { execute, ...useLazyFetchReturn } = useLazyFetch('/dev/data/products.csv', {
+    default: (): Product[] => [],
+    responseType: 'text',
+    transform: (values: string) => values.split('\n').filter(Boolean)
+      .map((row): Product => {
+        const [name, price] = row.split(';');
+        return { name, price: Number(price) };
+      }),
+  });
+
+  const filtered = useArrayFilter(
+    useLazyFetchReturn.data,
+    (product) => !filter.value || product.name.toLowerCase()
+      .includes(filter.value.toLowerCase()),
+  );
+
+  watchOnce(() => filter.value && !filtered.value.length, () => execute());
+
+  return { ...useLazyFetchReturn, execute, filtered };
+}
+
+const fmtIDR = (value: number) => new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR' }).format(value);
 </script>
 
 <script lang="ts" setup>
-import { Customer, Transaction } from '@anhzf-soekaer/shared/models';
-import type { MdMenu, MdOutlinedTextField } from '@material/web/all';
-import { Timestamp, doc } from 'firebase/firestore';
-import { ref as storageRef, uploadBytes } from 'firebase/storage';
-import { useFirebaseStorage } from 'vuefire';
-
 const itemImageInputRef = ref<HTMLInputElement>();
 const customerNameFieldRef = ref<MdOutlinedTextField>();
-const customerSelectionRef = ref<MdMenu>();
+const customerNameSelectionRef = ref<MdMenu>();
+const customerOriginFieldRef = ref<MdOutlinedTextField>();
+const customerOriginSelectionRef = ref<MdMenu>();
+const productFieldRef = ref<MdOutlinedTextField>();
+const productSelectionRef = ref<MdMenu>();
 
 const customerField = ref({
   id: null as string | null,
@@ -62,11 +120,37 @@ const itemField = ref({
   price: 0,
 });
 
-const itemImgSrcUrl = computed(() => itemField.value.image ? URL.createObjectURL(itemField.value.image) : '');
+const itemImgSrcUrl = useObjectUrl(() => itemField.value.image);
 
-const customerOptionsFilter = computed(() => customerField.value.id ? '' : customerField.value.name);
-const customerOptionsFilterThrotled = useThrottle(customerOptionsFilter, 800);
-const { data: customerOptions, status } = useCustomers(customerOptionsFilterThrotled);
+const customerNameOptionsFilter = computed(() => customerField.value.id ? '' : customerField.value.name);
+const customerNameOptionsFilterThrottled = useThrottle(customerNameOptionsFilter, 800);
+const { data: customerNameOptions, status: customerNameOptionsStatus } = useCustomers(customerNameOptionsFilterThrottled);
+
+const customerOriginOptionsFilter = computed(() => customerField.value.id ? '' : customerField.value.origin);
+const customerOriginOptionsFilterThrottled = useThrottle(customerOriginOptionsFilter, 800);
+const { data: customerOriginOptions, status: customerOriginOptionsStatus } = useOrigins(customerOriginOptionsFilterThrottled);
+
+const productOptionsFilter = computed(() => itemField.value.name);
+const productOptionsFilterThrottled = useThrottle(productOptionsFilter, 800);
+const { data: products, filtered: productOptions, status: productOptionsStatus, error } = useProducts(productOptionsFilterThrottled);
+
+const productFromList = computed(() => products.value.find((product) => product.name === itemField.value.name));
+const totalPrice = computed({
+  get: () => (itemField.value?.price
+    ? itemField.value.price
+    : itemField.value.qty * (productFromList.value?.price || 0)),
+  set: (v) => {
+    itemField.value.price = v;
+  },
+});
+
+const togglePriceAutoCalc = () => {
+  if (itemField.value.price) {
+    itemField.value.price = 0;
+  } else {
+    itemField.value.price = productFromList.value?.price || 0;
+  }
+}
 
 const log = console.log;
 
@@ -77,7 +161,7 @@ const clearCustomer = () => {
     whatsAppNumber: '',
     origin: '',
   };
-}
+};
 
 /**
  * TODO: Implements
@@ -97,11 +181,19 @@ const _uploadImage = (file: File) => {
   return uploadBytes(fileRef, file);
 }
 
-const onCustomerSelect = (selected: Customer) => {
+const onCustomerNameSelect = (selected: Customer) => {
   customerField.value.id = selected.id;
   customerField.value.name = selected.get('name');
   customerField.value.whatsAppNumber = selected.get('whatsAppNumber');
   customerField.value.origin = selected.get('origin') || Customer.DEFAULT_ORIGIN;
+}
+
+const onCustomerOriginSelect = (selected: string) => {
+  customerField.value.origin = selected;
+}
+
+const onProductSelect = (selected: Product) => {
+  itemField.value.name = selected.name;
 }
 
 const onSubmit = async () => {
@@ -150,11 +242,21 @@ const onSubmit = async () => {
   });
 
   log(transaction);
+  window.open(URL.createObjectURL(new Blob([JSON.stringify(transaction.data)], { type: 'application/json' })), '_blank');
 }
 
-watch(() => customerOptions.value.length, (hasOptions) => {
-  if (hasOptions) customerSelectionRef.value?.show();
-  else customerSelectionRef.value?.close();
+watch(() => customerNameOptions.value.length, (hasOptions) => {
+  if (hasOptions) customerNameSelectionRef.value?.show();
+  else customerNameSelectionRef.value?.close();
+});
+
+watch(() => customerOriginOptions.value.length, (hasOptions) => {
+  if (hasOptions) customerOriginSelectionRef.value?.show();
+  else customerOriginSelectionRef.value?.close();
+});
+
+useSeoMeta({
+  title: 'Buat Transaksi Baru',
 });
 </script>
 
@@ -186,13 +288,13 @@ watch(() => customerOptions.value.length, (hasOptions) => {
                 </md-icon-button>
               </div>
 
-              <md-menu ref="customerSelectionRef" :anchor="customerNameFieldRef" type="option" quick default-focus="NONE"
-                class="min-w-full max-h-50vh">
-                <md-circular-progress v-if="status === 'pending'" indeterminate />
+              <md-menu ref="customerNameSelectionRef" :anchor="customerNameFieldRef" type="option" quick
+                default-focus="NONE" class="min-w-full max-h-50vh">
+                <md-circular-progress v-if="customerNameOptionsStatus === 'pending'" indeterminate />
 
                 <template v-else>
-                  <md-menu-item v-for="opt in customerOptions" :key="opt.id" :headline="opt.get('name')"
-                    @click="onCustomerSelect(opt)" />
+                  <md-menu-item v-for="opt in customerNameOptions" :key="opt.id" :headline="opt.get('name')"
+                    @click="onCustomerNameSelect(opt)" />
                 </template>
               </md-menu>
             </div>
@@ -210,10 +312,23 @@ watch(() => customerOptions.value.length, (hasOptions) => {
                     :disabled="customerField.id" required></md-checkbox>
                   Mandiri
                 </label>
-                <md-outlined-text-field label="Instansi" name="customerOrigin"
-                  :disabled="customerField.id || customerField.origin === Customer.DEFAULT_ORIGIN" required class="grow"
-                  v-bind="bindings">
-                </md-outlined-text-field>
+
+                <div class="grow relative">
+                  <md-outlined-text-field ref="customerOriginFieldRef" label="Instansi" name="customerOrigin"
+                    :disabled="customerField.id || customerField.origin === Customer.DEFAULT_ORIGIN" required
+                    class="w-full" v-bind="bindings">
+                  </md-outlined-text-field>
+
+                  <md-menu ref="customerOriginSelectionRef" :anchor="customerOriginFieldRef" type="option" quick
+                    default-focus="NONE" class="min-w-full max-h-50vh">
+                    <md-circular-progress v-if="customerOriginOptionsStatus === 'pending'" indeterminate />
+
+                    <template v-else>
+                      <md-menu-item v-for="opt in customerOriginOptions" :key="opt" :headline="opt"
+                        @click="onCustomerOriginSelect(opt)" />
+                    </template>
+                  </md-menu>
+                </div>
               </field-wrapper>
             </div>
 
@@ -222,9 +337,21 @@ watch(() => customerOptions.value.length, (hasOptions) => {
               <hr class="divider" />
             </div>
 
-            <field-wrapper v-model="itemField.name" v-slot="bindings">
-              <md-outlined-text-field label="Jenis Cuci" name="itemName" required v-bind="bindings" />
-            </field-wrapper>
+            <div class="relative">
+              <field-wrapper v-model="itemField.name" v-slot="bindings">
+                <md-outlined-text-field ref="productFieldRef" label="Jenis Cuci" name="itemName" required class="w-full"
+                  v-bind="bindings" @click="productSelectionRef?.show()" />
+                <md-menu ref="productSelectionRef" :anchor="productFieldRef" type="option" quick default-focus="NONE"
+                  class="min-w-full max-h-50vh">
+                  <md-circular-progress v-if="productOptionsStatus === 'pending'" indeterminate />
+
+                  <template v-else>
+                    <md-menu-item v-for="opt in productOptions" :key="opt.name" :headline="opt.name"
+                      :supporting-text="fmtIDR(opt.price)" @click="onProductSelect(opt)" />
+                  </template>
+                </md-menu>
+              </field-wrapper>
+            </div>
 
             <field-wrapper v-model="itemField.qty" v-slot="bindings">
               <md-outlined-text-field label="Jumlah Pasang Sepatu" name="itemQty" type="number" required
@@ -235,10 +362,15 @@ watch(() => customerOptions.value.length, (hasOptions) => {
               <md-outlined-text-field label="Kondisi Sepatu" type="textarea" name="itemNote" v-bind="bindings" />
             </field-wrapper>
 
-            <field-wrapper v-model="itemField.price" v-slot="bindings">
-              <md-outlined-text-field label="Total Bayar" type="number" name="itemPrice" required v-bind="bindings"
-                step="500" />
-            </field-wrapper>
+            <div class="flex items-center gap-2">
+              <field-wrapper v-model="totalPrice" v-slot="bindings">
+                <md-outlined-text-field label="Total Bayar" type="number" name="itemPrice" required
+                  :disabled="productFromList && !itemField.price" class="grow" step="500" prefix-text="IDR "
+                  v-bind="bindings" />
+                <md-filter-chip v-if="productFromList" label="Hitung otomatis" :selected="!itemField.price"
+                  @selected="togglePriceAutoCalc" />
+              </field-wrapper>
+            </div>
 
             <div class="flex items-center gap-4 flex-wrap">
               <div class="shrink-0 flex flex-col gap-4 self-start">
@@ -250,7 +382,7 @@ watch(() => customerOptions.value.length, (hasOptions) => {
               </div>
 
               <div
-                class="grow group relative surface-container-low aspect-4/3 rounded-$md-sys-shape-corner-medium overflow-hidden">
+                class="grow group relative surface-container-low aspect-4/3 rounded-$md-sys-shape-corner-large overflow-hidden">
                 <img :src="itemImgSrcUrl" alt="foto sepatu" class="w-full  h-full object-cover">
               </div>
 

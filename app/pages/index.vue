@@ -1,18 +1,18 @@
 <script lang="ts">
-export const [showDrawer, toggleShowDrawer] = createGlobalState(() => useToggle(true))();
-</script>
-
-<script lang="ts" setup>
 import { NuxtLink } from '#components';
 import { breakpointsTailwind } from '@vueuse/core';
 import { RouteLocationRaw } from 'vue-router';
 
+export const [showDrawer, toggleShowDrawer] = createGlobalState(() => useToggle(false))();
+</script>
+
+<script lang="ts" setup>
 const route = useRoute();
 const router = useRouter();
 
 const bp = useBreakpoints(breakpointsTailwind);
-const bpLtSm = bp.smaller('sm');
-const bpGtSm = bp.greater('sm');
+const bpBelowSm = bp.smaller('sm');
+const bpAboveSm = bp.greater('sm');
 
 if (route.path === '/') {
   router.push('/transaction');
@@ -25,12 +25,16 @@ const [NavItemTemplate, NavItem] = createReusableTemplate<{
   onClick?: () => void;
 }>();
 
-whenever(bpLtSm, () => {
+whenever(bpBelowSm, () => {
   toggleShowDrawer(false);
 });
 
-whenever(bpGtSm, () => {
+whenever(bpAboveSm, () => {
   toggleShowDrawer(true);
+});
+
+onMounted(() => {
+  toggleShowDrawer(bpAboveSm.value);
 });
 </script>
 
@@ -53,7 +57,7 @@ whenever(bpGtSm, () => {
       enter-to-class="translate-x-0" leave-active-class="transform transition-transform" leave-from-class="translate-x-0"
       leave-to-class="-translate-x-full">
       <aside v-if="showDrawer"
-        class="shrink-0 fixed sm:static w-xs flex flex-col z-20 left-0 inset-y-0 sm:pl-6 sm:pr-3 sm:py-6 children:rounded-inherit"
+        class="shrink-0 fixed sm:static w-xs flex flex-col z-2 left-0 inset-y-0 sm:pl-6 sm:pr-3 sm:py-6 children:rounded-inherit"
         style="--md-elevation-level: 1;">
         <md-elevation />
 

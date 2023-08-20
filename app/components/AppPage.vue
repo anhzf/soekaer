@@ -1,4 +1,5 @@
 <script lang="ts">
+import '@material/web/button/filled-button';
 import '@material/web/iconbutton/icon-button';
 </script>
 
@@ -28,8 +29,8 @@ defineProps<Props>();
 <template>
   <div class="flex flex-col gap-6">
     <header
-      class="sticky top-0 inset-x-0 z-10 bg-$md-sys-color-surface-container flex justify-between items-center gap-4 py-4">
-      <div class="flex gap-4">
+      class="sticky top-0 inset-x-0 z-1 bg-$md-sys-color-surface-container flex justify-between items-center gap-4 py-4">
+      <div class="flex items-center gap-4">
         <div class="shrink-0 flex gap-2">
           <slot name="header-start" v-bind="toggleShowDrawer">
             <md-icon-button v-if="menuBtn" @click="toggleShowDrawer()">
@@ -48,13 +49,14 @@ defineProps<Props>();
         <slot name="header-trailing">
           <template v-if="trailingBtn">
             <NuxtLink v-if="trailingBtn.to" :to="trailingBtn.to" custom v-slot="{ href, navigate }">
-              <component :is="trailingBtn.component || 'md-filled-button'" :href="href" @click="navigate">
+              <component :is="trailingBtn.component || 'md-filled-button'" :href="href"
+                :trailing-icon="trailingBtn.iconTrailing" @click="navigate">
                 <md-icon v-if="trailingBtn.icon" slot="icon">{{ trailingBtn.icon }}</md-icon>
                 {{ trailingBtn.label }}
               </component>
             </NuxtLink>
             <NuxtLink v-else>
-              <component :is="trailingBtn.component || 'md-filled-button'">
+              <component :is="trailingBtn.component || 'md-filled-button'" :trailing-icon="trailingBtn.iconTrailing">
                 <md-icon v-if="trailingBtn.icon" slot="icon">{{ trailingBtn.icon }}</md-icon>
                 {{ trailingBtn.label }}
               </component>
