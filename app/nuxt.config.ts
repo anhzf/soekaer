@@ -1,5 +1,6 @@
 // https://nuxt.com/docs/api/configuration/nuxt-config
 export default defineNuxtConfig({
+  ssr: false,
   devtools: { enabled: true },
   vue: {
     compilerOptions: {
@@ -32,11 +33,13 @@ export default defineNuxtConfig({
     '@unocss/nuxt',
     'nuxt-vuefire',
     'nuxt-ssr-lit',
+    '@vite-pwa/nuxt',
   ],
   vuefire: {
     emulators: {
       enabled: false,
     },
+    auth: true,
     config: JSON.parse(process.env.FIREBASE_CONFIG || '{}'),
   },
   ssrLit: {

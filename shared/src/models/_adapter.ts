@@ -1,8 +1,9 @@
-import { DateTime } from './common';
+import { DateTime, Reference } from './common';
 
 interface AdapterOptions {
   dateTimeFromDate: (date: Date) => DateTime;
   dateTimeToDate: (dateTime: DateTime) => Date;
+  toReference: <T extends Record<string, any> = Record<string, any>>(path: string) => Reference<T>;
 }
 
 export const adapter: AdapterOptions = {
@@ -11,6 +12,9 @@ export const adapter: AdapterOptions = {
   },
   dateTimeToDate: (dateTime: DateTime) => {
     throw new Error('dateTimeToDate not initialized');
+  },
+  toReference: (path: string) => {
+    throw new Error('toReference not initialized');
   },
 };
 

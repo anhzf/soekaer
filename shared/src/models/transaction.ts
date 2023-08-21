@@ -1,5 +1,6 @@
-import { now } from './_adapter';
-import { DateTime, Reference } from './common';
+import { PickRequired } from '../utils/type';
+import { adapter, now } from './_adapter';
+import { DateTime, RawReference, Reference } from './common';
 import { Customer, ICustomer } from './customer';
 import { Model } from './model';
 import { IUser, User } from './user';
@@ -36,8 +37,8 @@ export type TransactionStatus = typeof TRANSACTION_STATUSES[number];
 
 export interface ITransaction {
   customer: {
-    ref?: Reference<Customer>;
-    snapshot: Pick<ICustomer, 'name' | 'whatsAppNumber'> & Partial<ICustomer>;
+    ref: Reference<Customer>;
+    snapshot: PickRequired<ICustomer, 'name' | 'whatsAppNumber'>;
   };
   status: TransactionStatus;
   items: TransactionItem[];
@@ -54,21 +55,40 @@ export interface ITransaction {
   paymentMethod?: PaymentMethod;
   receiver?: {
     ref: Reference<User>;
-    snapshot: Pick<IUser, 'name'> & Partial<IUser>;
+    snapshot: PickRequired<IUser, 'name'>;
   };
   note?: string;
   createdAt: DateTime;
   createdBy: {
     ref: Reference<User>;
-    snapshot: Pick<IUser, 'name'> & Partial<IUser>;
+    snapshot: PickRequired<IUser, 'name'>;
   };
   updatedAt: DateTime;
 }
 
+export interface ITransactionCreate extends Pick<ITransaction, 'items'> {
+  customer: {
+    ref: RawReference<Customer>;
+    snapshot: PickRequired<ICustomer, 'name' | 'whatsAppNumber'>;
+  };
+  createdBy: {
+    ref: RawReference<User>;
+    snapshot: PickRequired<IUser, 'name'>;
+  }
+}
+
 export class Transaction extends Model<ITransaction> {
-  static create(data: Pick<ITransaction, 'customer' | 'items' | 'createdBy'>) {
+  static create(data: ITransactionCreate) {
     return new Transaction({
-      ...data,
+      customer: {
+        ref: adapter.toReference(data.customer.ref.path),
+        snapshot: data.customer.snapshot,
+      },
+      createdBy: {
+        ref: adapter.toReference(data.createdBy.ref.path),
+        snapshot: data.createdBy.snapshot,
+      },
+      items: data.items,
       status: 'pending',
       createdAt: now(),
       updatedAt: now(),

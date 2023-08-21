@@ -5,5 +5,6 @@ useSeoMeta({
 </script>
 
 <template>
+  <VitePwaManifest />
   <NuxtPage />
 </template>

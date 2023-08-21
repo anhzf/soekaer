@@ -1,6 +1,6 @@
 <script lang="ts">
 import { DISPLAY_TRANSACTION_STATUSES } from '@anhzf-soekaer/shared';
-import { TRANSACTION_STATUSES, Transaction, TransactionStatus } from '@anhzf-soekaer/shared/models';
+import { TRANSACTION_STATUSES, TransactionStatus } from '@anhzf-soekaer/shared/models';
 import '@material/web/button/elevated-button';
 import '@material/web/button/filled-button';
 import '@material/web/button/filled-tonal-button';
@@ -11,37 +11,11 @@ import { MdDialog } from '@material/web/dialog/dialog';
 import '@material/web/menu/menu';
 import '@material/web/radio/radio';
 import '@material/web/textfield/outlined-text-field';
-import { Timestamp, doc } from 'firebase/firestore';
-import { nanoid } from 'nanoid';
+import { Timestamp, doc, updateDoc } from 'firebase/firestore';
+import { ref as storageRef } from 'firebase/storage';
+import { useStorageFileUrl, useStorageFile, useFirebaseStorage } from 'vuefire';
 
 const SEND_INVOICE_URL = 'https://api.whatsapp.com/send?phone={{phoneNumber}}&text={{message}}';
-
-const MESSAGE_TEMPLATE = `Halo Kak {{customerName}},
-
-Berikut invoice order Anda:
-
-Tanggal: {{createdAt}}
-Estimasi selesai: {{estimatedFinishedAt}}
-Link invoice: {{invoiceUrl}}
-
-Nama Barang & Layanan
-____________
-
-{{items}}
-____________
-
-*TOTAL: {{totalPrice}}*
-
-*LUNAS*
-
-Terima kasih telah mempercayakan barang kesayangannya dengan layanan kami.
-
-Jangan lupa untuk mengambil totebag/tas anda bila anda menitipkanya kepada kami. 😁🙏
-
-Instagram: @soekaer.uns
-Hp: 081392363385
-Cuci & Beli Sepatu
-SOEKAER UNS`;
 
 const TRANSACTION_STATUS_ICONS: Record<TransactionStatus, string> = {
   pending: 'clock_loader_10',
@@ -56,69 +30,26 @@ const TRANSACTION_STATUS_ICONS: Record<TransactionStatus, string> = {
 const replaceVars = (template: string, deps: Record<string, unknown>) => Object.entries(deps)
   .reduce((acc, [key, value]) => acc.replace(new RegExp(`{{${key}}}`, 'g'), value as string), template);
 
-const fmtDateTime = (date: Date) => date.toLocaleString('id-ID', {
-  weekday: 'long',
-  day: 'numeric',
-  month: 'long',
-  year: 'numeric',
-  hour: '2-digit',
-  minute: '2-digit',
-  hour12: false,
-  timeZoneName: 'short',
-});
-
-const fmtDate = (date: Date) => date.toLocaleDateString('id-ID', {
-  weekday: 'long',
-  day: 'numeric',
-  month: 'long',
-  year: 'numeric',
-});
-
-const fmtTime = (date: Date) => date.toLocaleTimeString('id-ID', {
-  hour: '2-digit',
-  minute: '2-digit',
-  hour12: false,
-  timeZoneName: 'short',
-});
-
-const fmtCurrency = (amount: number) => new Intl.NumberFormat('id-ID', {
-  style: 'currency',
-  currency: 'IDR',
-  maximumSignificantDigits: 3,
-}).format(amount);
-
 const hidePhoneNumberText = (phoneNumber: string) => phoneNumber.replace(/(\d{3})(\d{4})(\d{4})/, '$1****$3');
+
+definePageMeta({
+  middleware: 'skip-auth',
+});
 </script>
 
 <script lang="ts" setup>
+const user = useCurrentUser();
+
+const storageBucket = useFirebaseStorage();
+
 const url = useRequestURL();
+const route = useRoute();
 const router = useRouter();
 
-const transaction = ref<Transaction>(new Transaction({
-  customer: {
-    ref: doc(refs().customers, '1'),
-    snapshot: {
-      name: 'Zakky Zuhad',
-      whatsAppNumber: '6281326230183',
-    },
-  },
-  status: TRANSACTION_STATUSES.at(Math.random() * TRANSACTION_STATUSES.length)!,
-  items: [
-    {
-      name: 'Fast Clean',
-      price: 25000,
-      qty: 1,
-    },
-  ],
-  createdAt: Timestamp.fromDate(new Date(Date.now() - Math.random() * 1000 * 60 * 60 * 24 * 14)),
-  createdBy: {
-    ref: doc(refs().users, '1'),
-    snapshot: {
-      name: 'Rayyan Nur',
-    },
-  },
-  updatedAt: Timestamp.fromDate(new Date()),
-}, { id: nanoid() }));
+const { data: appSettings } = await useAppSettings();
+
+const docRef = doc(refs().transactions, String(route.params.transactionId));
+const { data: transaction, pending: isLoading } = await useDocument(docRef);
 
 const urlToCopy = computed(() => {
   const { href } = router.resolve({
@@ -136,7 +67,15 @@ const copy = async () => {
   window.alert('Link invoice berhasil disalin!');
 }
 
+const imgInRef = computed(() => transaction.value?.data.items[0].imageIn ? storageRef(storageBucket, transaction.value?.data.items[0].imageIn) : null);
+const imgOutRef = computed(() => transaction.value?.data.items[0].imageOut ? storageRef(storageBucket, transaction.value?.data.items[0].imageOut) : null);
+
+const { url: imgInUrl } = useStorageFileUrl(imgInRef);
+const { url: imgOutUrl } = useStorageFileUrl(imgOutRef);
+
 const sendInvoiceUrl = computed(() => {
+  if (!transaction.value) return 'Required data was not loaded yet';
+
   const source = transaction.value.data;
   const deps = {
     customerName: source.customer.snapshot.name,
@@ -144,13 +83,13 @@ const sendInvoiceUrl = computed(() => {
     totalPrice: transaction.value.totalPrice,
     createdAt: fmtDateTime(source.createdAt.toDate()),
     estimatedFinishedAt: source.estimatedFinishedAt ? fmtDateTime(source.estimatedFinishedAt.toDate()) : '-',
-    items: source.items.map(({ name, qty, price }) => `${name} (${qty}x) = ${fmtCurrency(price)}`).join('\n'),
+    items: source.items.map(({ name, qty, price }) => `${displayItemName(name)} (${qty}x) = ${fmtCurrency(price)}`).join('\n'),
     invoiceUrl: urlToCopy.value,
   };
 
   return replaceVars(SEND_INVOICE_URL, {
     ...deps,
-    message: encodeURIComponent(replaceVars(MESSAGE_TEMPLATE, deps)),
+    message: encodeURIComponent(replaceVars(appSettings.value?.invoiceMessageTemplate || '', deps)),
   });
 });
 
@@ -160,9 +99,15 @@ const [hidePhoneNumber, toggleHidePhoneNumber] = useToggle(true);
 const [isImageDialogOpen] = useToggle();
 const [isUpdateStatusDialogOpen] = useToggle();
 
-const onUpdateStatusDialogClose = (ev: Event) => {
+const onUpdateStatusDialogClose = async (ev: Event) => {
   isUpdateStatusDialogOpen.value = false;
-  console.log((ev.target as MdDialog)?.returnValue);
+
+  const newStatus = (ev.target as MdDialog)?.returnValue as TransactionStatus;
+
+  await updateDoc(docRef,
+    'status', newStatus,
+    'updatedAt', Timestamp.now(),
+  );
 }
 
 useSeoMeta({
@@ -184,7 +129,7 @@ useSeoMeta({
   }">
     <main class="flex flex-col">
       <section class="surface on-surface-text p-4 rounded-$md-sys-shape-corner-medium">
-        <div class="flex flex-col gap-8">
+        <div v-if="transaction" class="flex flex-col gap-8">
           <div class="self-center w-full max-w-prose flex flex-col gap-8">
             <table
               class="border-separate border-spacing-y-2 children:children:h-10 children:children:p-0 children:children:children:h-inherit children:last:children:h-12 children:last:children:border-t children:last:children:border-$md-sys-color-outline children:last:children:pt-2">
@@ -199,7 +144,7 @@ useSeoMeta({
                 <td>
                   <div class="flex justify-end items-center gap-2">
                     <md-assist-chip :label="DISPLAY_TRANSACTION_STATUSES[transaction.data.status]"
-                      @click="isUpdateStatusDialogOpen = true">
+                      @click="user && (isUpdateStatusDialogOpen = true)">
                       <md-icon slot="icon">
                         {{ TRANSACTION_STATUS_ICONS[transaction.data.status] }}
                       </md-icon>
@@ -251,7 +196,9 @@ useSeoMeta({
               </tr>
               <tr>
                 <th class="text-label-large on-surface-text text-left font-semibold">Jenis Cuci</th>
-                <td class="text-label-large primary-text text-right">{{ transaction.services.join(', ') }}</td>
+                <td class="text-label-large primary-text text-right">
+                  {{ transaction.services.map(displayItemName).join(', ') }}
+                </td>
               </tr>
               <tr>
                 <th class="text-label-large on-surface-text text-left font-semibold">Foto Sepatu</th>
@@ -275,6 +222,14 @@ useSeoMeta({
             </p>
           </div>
         </div>
+
+        <div v-else-if="isLoading" class="h-40 flex justify-center items-center">
+          <md-circular-progress indeterminate />
+        </div>
+
+        <div v-else>
+          <p class="text-body-medium on-surface-variant-text text-center">Transaksi tidak ditemukan</p>
+        </div>
       </section>
 
       <hr class="divider mt-12" />
@@ -293,7 +248,8 @@ useSeoMeta({
         </md-outlined-button>
 
         <NuxtLink :to="sendInvoiceUrl" external target="_blank" custom v-slot="{ href, navigate, ...nuxtLinkBindings }">
-          <md-filled-button :href="href" class="grow" @click="navigate" v-bind="nuxtLinkBindings">
+          <md-filled-button :href="href" class="grow" :disabled="!appSettings?.invoiceMessageTemplate" @click="navigate"
+            v-bind="nuxtLinkBindings">
             Kirim invoice ke pelanggan
             <md-icon slot="icon">share</md-icon>
           </md-filled-button>
@@ -306,14 +262,14 @@ useSeoMeta({
       <div slot="content" class="flex flex-col gap-4">
         <div class="flex flex-col gap-2">
           <p class="text-label-medium">Before:</p>
-          <img src="https://picsum.photos/500/500" alt="before" class="aspect-4/3 rounded-$md-sys-shape-corner-large">
+          <img :src="imgInUrl || 'https://placehold.co/400x300?text=Tidak+ada+gambar'" alt="before"
+            class="aspect-4/3 object-cover rounded-$md-sys-shape-corner-large">
         </div>
-
-        <hr class="divider" />
 
         <div class="flex flex-col gap-2">
           <p class="text-label-medium">After:</p>
-          <img src="https://picsum.photos/500/500" alt="before" class="aspect-4/3 rounded-$md-sys-shape-corner-large">
+          <img :src="imgOutUrl || 'https://placehold.co/400x300?text=Tidak+ada+gambar'" alt="before"
+            class="aspect-4/3 object-cover rounded-$md-sys-shape-corner-large">
         </div>
       </div>
       <div slot="actions">
@@ -328,9 +284,9 @@ useSeoMeta({
         <template v-for="status in TRANSACTION_STATUSES" :key="status">
           <field-wrapper v-model="updateStatusField" event-name="change" v-slot="{ value, ...bindings }">
             <label class="flex items-center">
-              <md-radio name="transaction-updateStatus" :value="status" :checked="status === value" :aria-label="status"
-                touch-target="wrapper" v-bind="bindings"></md-radio>
-              <span aria-hidden="true">{{ status }}</span>
+              <md-radio name="transaction-updateStatus" :value="status" :checked="status === value"
+                :aria-label="DISPLAY_TRANSACTION_STATUSES[status]" touch-target="wrapper" v-bind="bindings" />
+              <span aria-hidden="true">{{ DISPLAY_TRANSACTION_STATUSES[status] }}</span>
             </label>
           </field-wrapper>
         </template>

@@ -1,21 +1,24 @@
 <script lang="ts">
 import { NuxtLink } from '#components';
 import { breakpointsTailwind } from '@vueuse/core';
+import { signOut } from 'firebase/auth';
 import { RouteLocationRaw } from 'vue-router';
 
 export const [showDrawer, toggleShowDrawer] = createGlobalState(() => useToggle(false))();
 </script>
 
 <script lang="ts" setup>
+const auth = useFirebaseAuth();
+const user = useCurrentUser()
+
 const route = useRoute();
-const router = useRouter();
 
 const bp = useBreakpoints(breakpointsTailwind);
 const bpBelowSm = bp.smaller('sm');
 const bpAboveSm = bp.greater('sm');
 
 if (route.path === '/') {
-  router.push('/transaction');
+  navigateTo('/transaction');
 }
 
 const [NavItemTemplate, NavItem] = createReusableTemplate<{
@@ -24,6 +27,13 @@ const [NavItemTemplate, NavItem] = createReusableTemplate<{
   to?: RouteLocationRaw;
   onClick?: () => void;
 }>();
+
+const onLogoutClick = async () => {
+  if (!auth) throw new Error("Auth is not defined");
+
+  await signOut(auth);
+  navigateTo({ name: 'auth' });
+}
 
 whenever(bpBelowSm, () => {
   toggleShowDrawer(false);
@@ -35,6 +45,10 @@ whenever(bpAboveSm, () => {
 
 onMounted(() => {
   toggleShowDrawer(bpAboveSm.value);
+});
+
+definePageMeta({
+  middleware: 'auth',
 });
 </script>
 
@@ -87,15 +101,15 @@ onMounted(() => {
                 <span class="text-title-large">A</span>
               </div>
               <div class="inline-flex flex-col justify-center">
-                <span class="text-title-medium">Rohim Syifa</span>
-                <span class="text-body-medium">work@anhzf.dev</span>
+                <span class="text-title-medium">{{ user?.displayName || 'No Name' }}</span>
+                <span class="text-body-medium">{{ user?.email }}</span>
               </div>
 
               <md-ripple />
             </NuxtLink>
 
             <!-- User nav actions -->
-            <nav-item label="Keluar" :to="{ name: 'auth' }" icon="logout" />
+            <nav-item label="Keluar" icon="logout" @click="onLogoutClick" />
           </ul>
         </nav>
       </aside>

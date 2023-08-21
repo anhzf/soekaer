@@ -11,44 +11,25 @@ import '@material/web/menu/menu';
 import '@material/web/menu/menu-item';
 import '@material/web/progress/circular-progress';
 import '@material/web/textfield/outlined-text-field';
-import { Timestamp, doc } from 'firebase/firestore';
+import { doc, query, where } from 'firebase/firestore';
 import { ref as storageRef, uploadBytes } from 'firebase/storage';
 import { useFirebaseStorage } from 'vuefire';
 
 interface Product {
   name: string;
   price: number;
+  displayName?: string;
 }
 
 const useCustomers = (filter: Ref<string>) => {
-  const MIN_FILTER_LENGTH = 3;
-  const { data, execute, ...useLazyFetchReturn } = useLazyFetch('/dev/data/customers.csv', {
-    default: (): Customer[] => [],
-    responseType: 'text',
-    transform: (values: string) => values.split('\n')
-      .filter(Boolean)
-      .map((row) => {
-        const [id, name] = row.split(';');
-        return new Customer({
-          name,
-          whatsAppNumber: '6281234567890',
-          origin: 'independent',
-          createdAt: Timestamp.now(),
-          updatedAt: Timestamp.now(),
-        }, { id });
-      }),
-    immediate: false,
-  });
+  // const MIN_FILTER_LENGTH = 3;
+  const { data, ...useCollectionReturn } = useCollection(query(
+    refs().customers,
+    where('name', '>=', filter.value),
+    where('name', '<=', filter.value + '\uf8ff'),
+  ), { once: true });
 
-  const filteredData = computed(() => (console.count('filtering customer'), filter.value?.length >= MIN_FILTER_LENGTH
-    ? data.value
-      .filter(customer => customer.get('name')?.toLowerCase()
-        .includes(filter.value.toLowerCase()))
-    : []));
-
-  watchOnce(() => filter.value.length >= MIN_FILTER_LENGTH, () => execute());
-
-  return { ...useLazyFetchReturn, execute, data: filteredData, all: data };
+  return { ...useCollectionReturn, data };
 }
 
 const useOrigins = (filter: Ref<string>) => {
@@ -72,38 +53,31 @@ const useOrigins = (filter: Ref<string>) => {
 }
 
 const useProducts = (filter: Ref<string>) => {
-  const { execute, ...useLazyFetchReturn } = useLazyFetch('/dev/data/products.csv', {
-    default: (): Product[] => [],
-    responseType: 'text',
-    transform: (values: string) => values.split('\n').filter(Boolean)
-      .map((row): Product => {
-        const [name, price] = row.split(';');
-        return { name, price: Number(price) };
-      }),
-  });
+  const { data: settings, ...useAppSettingsReturn } = useAppSettings();
+  const products = computed(() => Object.entries(settings.value?.products || {})
+    .map(([name, props]) => ({ ...props, name })));
 
   const filtered = useArrayFilter(
-    useLazyFetchReturn.data,
-    (product) => !filter.value || product.name.toLowerCase()
+    products,
+    (product) => !filter.value || (product.displayName?.toLowerCase() || product.name.toLowerCase())
       .includes(filter.value.toLowerCase()),
   );
 
-  watchOnce(() => filter.value && !filtered.value.length, () => execute());
-
-  return { ...useLazyFetchReturn, execute, filtered };
+  return { ...useAppSettingsReturn, data: products, filtered };
 }
-
-const fmtIDR = (value: number) => new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR' }).format(value);
 </script>
 
 <script lang="ts" setup>
-const itemImageInputRef = ref<HTMLInputElement>();
+const user = useCurrentUser();
+
 const customerNameFieldRef = ref<MdOutlinedTextField>();
 const customerNameSelectionRef = ref<MdMenu>();
 const customerOriginFieldRef = ref<MdOutlinedTextField>();
 const customerOriginSelectionRef = ref<MdMenu>();
 const productFieldRef = ref<MdOutlinedTextField>();
 const productSelectionRef = ref<MdMenu>();
+
+const isLoading = ref(false);
 
 const customerField = ref({
   id: null as string | null,
@@ -124,7 +98,7 @@ const itemImgSrcUrl = useObjectUrl(() => itemField.value.image);
 
 const customerNameOptionsFilter = computed(() => customerField.value.id ? '' : customerField.value.name);
 const customerNameOptionsFilterThrottled = useThrottle(customerNameOptionsFilter, 800);
-const { data: customerNameOptions, status: customerNameOptionsStatus } = useCustomers(customerNameOptionsFilterThrottled);
+const { data: customerNameOptions, pending: isCustomerNameOptionsPending } = useCustomers(customerNameOptionsFilterThrottled);
 
 const customerOriginOptionsFilter = computed(() => customerField.value.id ? '' : customerField.value.origin);
 const customerOriginOptionsFilterThrottled = useThrottle(customerOriginOptionsFilter, 800);
@@ -132,7 +106,7 @@ const { data: customerOriginOptions, status: customerOriginOptionsStatus } = use
 
 const productOptionsFilter = computed(() => itemField.value.name);
 const productOptionsFilterThrottled = useThrottle(productOptionsFilter, 800);
-const { data: products, filtered: productOptions, status: productOptionsStatus, error } = useProducts(productOptionsFilterThrottled);
+const { data: products, filtered: productOptions, pending: isProductsPending } = useProducts(productOptionsFilterThrottled);
 
 const productFromList = computed(() => products.value.find((product) => product.name === itemField.value.name));
 const totalPrice = computed({
@@ -163,20 +137,13 @@ const clearCustomer = () => {
   };
 };
 
-/**
- * TODO: Implements
- */
-const createNewCustomer = (customer: Customer) => {
-  return Promise.resolve(new Customer(customer.data, { id: Date.now().toString() }));
-}
-
+// const uploadImage = (file: File) => {
+//   const fileRef = storageRef(useFirebaseStorage(), `/transactions/items/${Date.now()}_${file.name}`)
+//   return {
+//     ref: fileRef,
+//   };
+// }
 const uploadImage = (file: File) => {
-  const fileRef = storageRef(useFirebaseStorage(), `/transactions/items/${Date.now()}_${file.name}`)
-  return {
-    ref: fileRef,
-  };
-}
-const _uploadImage = (file: File) => {
   const fileRef = storageRef(useFirebaseStorage(), `/transactions/items/${Date.now()}_${file.name}`)
   return uploadBytes(fileRef, file);
 }
@@ -201,57 +168,62 @@ const onSubmit = async () => {
     throw new Error("Image is required");
   }
 
-  const customer = customerField.value.id
-    ? new Customer({
+  if (!user.value) {
+    throw new Error("Unauthenticated");
+  }
+
+  isLoading.value = true;
+
+  try {
+    const createCustomer = () => customerActions.create(Customer.create({
       name: customerField.value.name,
       whatsAppNumber: customerField.value.whatsAppNumber,
       origin: customerField.value.origin,
-      createdAt: Timestamp.fromDate(new Date(Date.now() - Math.random() * 1000 * 60 * 60 * 24 * 7)),
-      updatedAt: Timestamp.now(),
-    }, { id: customerField.value.id })
-    : Customer.create({
-      name: customerField.value.name,
-      whatsAppNumber: customerField.value.whatsAppNumber,
-      origin: customerField.value.origin,
+    }));
+
+    const customer = customerField.value.id
+      ? (await customerActions.get(customerField.value.id) || await createCustomer())
+      : await createCustomer();
+
+    const uploadedImage = await uploadImage(itemField.value.image);
+
+    const transaction = Transaction.create({
+      customer: {
+        ref: doc(refs().customers, customer.id),
+        snapshot: customer.data,
+      },
+      items: [{
+        name: itemField.value.name,
+        type: itemField.value.type,
+        qty: itemField.value.qty,
+        note: itemField.value.note,
+        imageIn: uploadedImage.ref.toString(),
+        price: itemField.value.price || productFromList.value?.price || 0,
+      }],
+      createdBy: {
+        ref: doc(refs().users, user.value.uid),
+        snapshot: {
+          name: user.value.displayName || user.value.email || 'No Name',
+        },
+      },
     });
 
-  const customerRef = doc(refs().customers, customer.id
-    ? customer.id
-    : (await createNewCustomer(customer)).id);
-  const uploadedImage = await uploadImage(itemField.value.image);
+    const created = await transactionActions.create(transaction);
 
-  const transaction = Transaction.create({
-    customer: {
-      ref: customerRef,
-      snapshot: customer.data,
-    },
-    items: [{
-      name: itemField.value.name,
-      type: itemField.value.type,
-      qty: itemField.value.qty,
-      note: itemField.value.note,
-      imageIn: uploadedImage.ref.toString(),
-      price: itemField.value.price,
-    }],
-    createdBy: {
-      ref: doc(refs().users, '123'),
-      snapshot: {
-        name: 'Anhzf',
-      },
-    },
-  });
+    navigateTo({ name: 'index-transaction-transactionId', params: { transactionId: created.id } });
 
-  log(transaction);
-  window.open(URL.createObjectURL(new Blob([JSON.stringify(transaction.data)], { type: 'application/json' })), '_blank');
+  } finally {
+    isLoading.value = false;
+  }
 }
 
-watch(() => customerNameOptions.value.length, (hasOptions) => {
-  if (hasOptions) customerNameSelectionRef.value?.show();
+watch(() => customerField.value.name, (hasInput) => {
+  if (hasInput) customerNameSelectionRef.value?.show();
   else customerNameSelectionRef.value?.close();
 });
 
-watch(() => customerOriginOptions.value.length, (hasOptions) => {
-  if (hasOptions) customerOriginSelectionRef.value?.show();
+watch(() => customerField.value.origin, (hasInput) => {
+  if (hasInput) customerOriginSelectionRef.value?.show();
   else customerOriginSelectionRef.value?.close();
 });
 
@@ -266,7 +238,7 @@ useSeoMeta({
     backBtn: true,
   }">
     <main class="flex flex-col">
-      <section class="surface on-surface-text p-4 rounded-$md-sys-shape-corner-medium">
+      <section class="relative surface on-surface-text p-4 rounded-$md-sys-shape-corner-medium">
         <form id="form-transaction-new" class="flex flex-col gap-8" @submit.prevent="onSubmit">
           <div class="self-center w-full max-w-prose flex flex-col gap-8">
             <div class="flex flex-col gap-2">
@@ -290,7 +262,9 @@ useSeoMeta({
 
               <md-menu ref="customerNameSelectionRef" :anchor="customerNameFieldRef" type="option" quick
                 default-focus="NONE" class="min-w-full max-h-50vh">
-                <md-circular-progress v-if="customerNameOptionsStatus === 'pending'" indeterminate />
+                <div v-if="isCustomerNameOptionsPending" class="flex justify-center">
+                  <md-circular-progress indeterminate />
+                </div>
 
                 <template v-else>
                   <md-menu-item v-for="opt in customerNameOptions" :key="opt.id" :headline="opt.get('name')"
@@ -321,7 +295,9 @@ useSeoMeta({
 
                   <md-menu ref="customerOriginSelectionRef" :anchor="customerOriginFieldRef" type="option" quick
                     default-focus="NONE" class="min-w-full max-h-50vh">
-                    <md-circular-progress v-if="customerOriginOptionsStatus === 'pending'" indeterminate />
+                    <div v-if="customerOriginOptionsStatus === 'pending'" class="flex justify-center">
+                      <md-circular-progress indeterminate />
+                    </div>
 
                     <template v-else>
                       <md-menu-item v-for="opt in customerOriginOptions" :key="opt" :headline="opt"
@@ -338,16 +314,19 @@ useSeoMeta({
             </div>
 
             <div class="relative">
-              <field-wrapper v-model="itemField.name" v-slot="bindings">
+              <field-wrapper :model-value="productFromList?.displayName"
+                @update:model-value="itemField.name = $event || ''" v-slot="bindings">
                 <md-outlined-text-field ref="productFieldRef" label="Jenis Cuci" name="itemName" required class="w-full"
-                  v-bind="bindings" @click="productSelectionRef?.show()" />
+                  v-bind="bindings" @click="productOptions.length && productSelectionRef?.show()" />
                 <md-menu ref="productSelectionRef" :anchor="productFieldRef" type="option" quick default-focus="NONE"
                   class="min-w-full max-h-50vh">
-                  <md-circular-progress v-if="productOptionsStatus === 'pending'" indeterminate />
+                  <div v-if="isProductsPending" class="flex justify-center">
+                    <md-circular-progress indeterminate />
+                  </div>
 
                   <template v-else>
-                    <md-menu-item v-for="opt in productOptions" :key="opt.name" :headline="opt.name"
-                      :supporting-text="fmtIDR(opt.price)" @click="onProductSelect(opt)" />
+                    <md-menu-item v-for="opt in productOptions" :key="opt.name" :headline="opt.displayName"
+                      :supporting-text="fmtCurrency(opt.price)" @click="onProductSelect(opt)" />
                   </template>
                 </md-menu>
               </field-wrapper>
@@ -365,7 +344,7 @@ useSeoMeta({
             <div class="flex items-center gap-2">
               <field-wrapper v-model="totalPrice" v-slot="bindings">
                 <md-outlined-text-field label="Total Bayar" type="number" name="itemPrice" required
-                  :disabled="productFromList && !itemField.price" class="grow" step="500" prefix-text="IDR "
+                  :disabled="productFromList && !itemField.price" class="grow" step="500" prefix-text="Rp "
                   v-bind="bindings" />
                 <md-filter-chip v-if="productFromList" label="Hitung otomatis" :selected="!itemField.price"
                   @selected="togglePriceAutoCalc" />
@@ -375,9 +354,12 @@ useSeoMeta({
             <div class="flex items-center gap-4 flex-wrap">
               <div class="shrink-0 flex flex-col gap-4 self-start">
                 <span class="text-body-medium">Foto sepatu:</span>
-                <md-outlined-button @click="itemImageInputRef?.click()">
+                <md-outlined-button type="button">
                   Pilih gambar
                   <md-icon slot="icon">add_a_photo</md-icon>
+                  <input type="file" accept=".png,.jpeg,.jpg" name="itemImage"
+                    class="absolute inset-0 opacity-0 cursor-pointer"
+                    @change="itemField.image = ($event.target as HTMLInputElement)?.files?.[0] || null" />
                 </md-outlined-button>
               </div>
 
@@ -385,9 +367,6 @@ useSeoMeta({
                 class="grow group relative surface-container-low aspect-4/3 rounded-$md-sys-shape-corner-large overflow-hidden">
                 <img :src="itemImgSrcUrl" alt="foto sepatu" class="w-full  h-full object-cover">
               </div>
-
-              <input ref="itemImageInputRef" type="file" accept=".png,.jpeg,.jpg" name="itemImage" class="hidden"
-                @change="itemField.image = ($event.target as HTMLInputElement)?.files?.[0] || null" />
             </div>
           </div>
 
@@ -400,6 +379,8 @@ useSeoMeta({
             </md-filled-button>
           </div>
         </form>
+
+        <loading-overlay v-if="isLoading"></loading-overlay>
       </section>
     </main>
   </app-page>

@@ -2,6 +2,7 @@ import { DocumentReference, Timestamp } from 'firebase/firestore';
 
 declare module '#app' {
   interface PageMeta {
+    skipAuth?: true;
   }
 }
 

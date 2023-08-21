@@ -2,7 +2,11 @@ export interface HasId {
   id: string;
 }
 
-export interface Reference<T extends Record<string, any> = Record<string, any>> extends HasId {
+export interface RawReference<T extends Record<string, any> = Record<string, any>> {
+  path: string;
+}
+
+export interface Reference<T extends Record<string, any> = Record<string, any>> extends RawReference<T>, HasId {
   path: string;
 }
 
