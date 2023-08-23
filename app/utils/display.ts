@@ -1,3 +1,4 @@
+import { IAppSettings } from '@anhzf-soekaer/shared/models';
 import { UseTimeAgoMessages, UseTimeAgoUnitNamesDefault, formatTimeAgo } from '@vueuse/core';
 
 export const displayItemName = (item: string) => {
@@ -52,3 +53,6 @@ export const displayTransactionTime = (date: Date) => {
     });
   }
 }
+
+export const hidePhoneNumberText = (phoneNumber: string) => phoneNumber.replace(/(\d{3})(\d{4})(\d{4})/, '$1****$3');
+

@@ -44,7 +44,8 @@ export interface ITransaction {
   items: TransactionItem[];
   estimatedFinishedAt?: DateTime;
   discount?: {
-    labels: string[];
+    name: string;
+    labels?: string[];
     amountValue?: number;
     /**
      * 0 - 1
@@ -104,6 +105,10 @@ export class Transaction extends Model<ITransaction> {
   }
 
   get totalPrice() {
-    return this.data.items.reduce((acc, item) => acc + item.price * item.qty, 0);
+    const subtotal = this.data.items.reduce((acc, item) => acc + item.price * item.qty, 0);
+    const discount = this.data.discount?.amountValue
+      || (this.data.discount?.percentageValue ?? 0) * subtotal;
+
+    return subtotal - discount;
   }
 }

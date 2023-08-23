@@ -137,12 +137,6 @@ const clearCustomer = () => {
   };
 };
 
-// const uploadImage = (file: File) => {
-//   const fileRef = storageRef(useFirebaseStorage(), `/transactions/items/${Date.now()}_${file.name}`)
-//   return {
-//     ref: fileRef,
-//   };
-// }
 const uploadImage = (file: File) => {
   const fileRef = storageRef(useFirebaseStorage(), `/transactions/items/${Date.now()}_${file.name}`)
   return uploadBytes(fileRef, file);
@@ -275,7 +269,8 @@ useSeoMeta({
 
             <field-wrapper v-model="customerField.whatsAppNumber" v-slot="bindings">
               <md-outlined-text-field label="No. WhatsApp" name="customerWhatsAppNumber" type="tel"
-                :disabled="customerField.id" required v-bind="bindings" />
+                supporting-text="Gunakan format internasional (cth: 628123456)" :disabled="customerField.id" required
+                v-bind="bindings" />
             </field-wrapper>
 
             <div class="flex items-center gap-4">
@@ -283,7 +278,7 @@ useSeoMeta({
                 <label class="inline-flex items-center gap-2 cursor-pointer">
                   <md-checkbox :checked="customerField.origin === Customer.DEFAULT_ORIGIN"
                     @input="customerField.origin = $event.target.checked ? '' : Customer.DEFAULT_ORIGIN"
-                    :disabled="customerField.id" required></md-checkbox>
+                    :disabled="customerField.id" />
                   Mandiri
                 </label>
 

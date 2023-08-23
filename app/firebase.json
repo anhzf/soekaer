@@ -6,7 +6,6 @@
   "functions": [
     {
       "source": "functions",
-      "codebase": "soekaer",
       "ignore": [
         "node_modules",
         ".git",
@@ -41,7 +40,7 @@
     "singleProjectMode": true
   },
   "hosting": {
-    "site": "soekaer-anhzf-labs",
+    "site": "spotz-cleaning",
     "public": "app/.output/public",
     "ignore": [
       "firebase.json",

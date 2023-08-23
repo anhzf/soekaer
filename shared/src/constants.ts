@@ -1,1 +1,1 @@
-export const ROOT_COLLECTION_PREFIX = 'soekaer_' as const;
+export const ROOT_COLLECTION_PREFIX = '' as const;

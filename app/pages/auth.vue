@@ -24,9 +24,9 @@ const onSubmit = async () => {
   navigateTo({ name: 'index-transaction' });
 };
 
-definePageMeta({
-  middleware: 'no-auth',
-});
+// definePageMeta({
+//   middleware: 'no-auth',
+// });
 </script>
 
 <template>

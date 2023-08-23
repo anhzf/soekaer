@@ -4,7 +4,29 @@ import { breakpointsTailwind } from '@vueuse/core';
 import { signOut } from 'firebase/auth';
 import { RouteLocationRaw } from 'vue-router';
 
-export const [showDrawer, toggleShowDrawer] = createGlobalState(() => useToggle(false))();
+export const useDrawerToggler = createGlobalState(() => {
+  const user = useCurrentUser();
+
+  const bp = useBreakpoints(breakpointsTailwind);
+  const bpBelowSm = bp.smaller('sm');
+  const bpAboveSm = bp.greater('sm');
+
+  const [isOpen, toggle] = useToggle(bpAboveSm.value);
+
+  whenever(bpBelowSm, () => {
+    toggle(false);
+  });
+
+  whenever(bpAboveSm, () => {
+    toggle(true);
+  });
+
+  whenever(() => !user.value, () => {
+    toggle(false);
+  }, { immediate: true });
+
+  return [isOpen, toggle] as const;
+});
 </script>
 
 <script lang="ts" setup>
@@ -13,9 +35,7 @@ const user = useCurrentUser()
 
 const route = useRoute();
 
-const bp = useBreakpoints(breakpointsTailwind);
-const bpBelowSm = bp.smaller('sm');
-const bpAboveSm = bp.greater('sm');
+const [showDrawer, toggleShowDrawer] = useDrawerToggler();
 
 if (route.path === '/') {
   navigateTo('/transaction');
@@ -33,19 +53,7 @@ const onLogoutClick = async () => {
 
   await signOut(auth);
   navigateTo({ name: 'auth' });
-}
-
-whenever(bpBelowSm, () => {
-  toggleShowDrawer(false);
-});
-
-whenever(bpAboveSm, () => {
-  toggleShowDrawer(true);
-});
-
-onMounted(() => {
-  toggleShowDrawer(bpAboveSm.value);
-});
+};
 
 definePageMeta({
   middleware: 'auth',
@@ -71,7 +79,7 @@ definePageMeta({
       enter-to-class="translate-x-0" leave-active-class="transform transition-transform" leave-from-class="translate-x-0"
       leave-to-class="-translate-x-full">
       <aside v-if="showDrawer"
-        class="shrink-0 fixed sm:static w-xs flex flex-col z-2 left-0 inset-y-0 sm:pl-6 sm:pr-3 sm:py-6 children:rounded-inherit"
+        class="shrink-0 fixed sm:static w-xs flex flex-col z-1 left-0 inset-y-0 sm:pl-6 sm:pr-3 sm:py-6 children:rounded-inherit"
         style="--md-elevation-level: 1;">
         <md-elevation />
 

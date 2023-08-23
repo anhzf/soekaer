@@ -1,10 +1,10 @@
 @import 'colors.module.css';
 @import 'typography.module.css';
-@import 'theme.dark.css';
-// @import 'theme.light.css';
+// @import 'theme.dark.css';
+@import 'theme.light.css';
 
 html {
-  color-scheme: dark;
+  color-scheme: light;
 }
 
 .divider {

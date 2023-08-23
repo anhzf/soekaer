@@ -6,4 +6,11 @@ export interface IAppSettings {
       displayName?: string;
     };
   };
+  discounts: {
+    [name: string]: {
+      amountValue?: number;
+      percentageValue?: string;
+      labels?: string[];
+    };
+  };
 }

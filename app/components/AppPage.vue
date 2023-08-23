@@ -2,13 +2,12 @@
 import '@material/web/button/filled-button';
 import '@material/web/iconbutton/icon-button';
 import { objectOmit } from '@vueuse/core';
+import type { Component } from 'vue';
+import type { RouteLocationRaw } from 'vue-router';
+import { useDrawerToggler } from '../pages/index.vue';
 </script>
 
 <script lang="ts" setup>
-import type { Component } from 'vue';
-import type { RouteLocationRaw } from 'vue-router';
-import { toggleShowDrawer } from '../pages/index.vue';
-
 interface Props {
   title: string;
   backBtn?: boolean;
@@ -23,6 +22,8 @@ interface Props {
   };
   fullWidth?: boolean;
 }
+
+const [, toggleShowDrawer] = useDrawerToggler();
 
 defineProps<Props>();
 </script>
