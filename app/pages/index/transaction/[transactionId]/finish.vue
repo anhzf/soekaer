@@ -79,7 +79,7 @@ const onSubmit = async () => {
       'paidAmount', transaction.value?.totalPrice === field.value.paidAmount ? null : field.value.paidAmount,
       'items', [{
         ...transaction.value?.data.items[0],
-        imageOut: uploadedImg?.ref.fullPath,
+        imageOut: uploadedImg?.ref.toString(),
       }],
       'receiver', {
       ref: doc(refs().users, user.value!.uid),

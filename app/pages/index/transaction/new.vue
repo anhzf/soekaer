@@ -126,8 +126,6 @@ const togglePriceAutoCalc = () => {
   }
 }
 
-const log = console.log;
-
 const clearCustomer = () => {
   customerField.value = {
     id: null,
@@ -327,7 +325,7 @@ useSeoMeta({
               </field-wrapper>
             </div>
 
-            <field-wrapper v-model="itemField.qty" v-slot="bindings">
+            <field-wrapper v-model.number="itemField.qty" v-slot="bindings">
               <md-outlined-text-field label="Jumlah Pasang Sepatu" name="itemQty" type="number" required
                 v-bind="bindings" />
             </field-wrapper>
@@ -337,7 +335,7 @@ useSeoMeta({
             </field-wrapper>
 
             <div class="flex items-center gap-2">
-              <field-wrapper v-model="totalPrice" v-slot="bindings">
+              <field-wrapper v-model.number="totalPrice" v-slot="bindings">
                 <md-outlined-text-field label="Total Bayar" type="number" name="itemPrice" required
                   :disabled="productFromList && !itemField.price" class="grow" step="500" prefix-text="Rp "
                   v-bind="bindings" />
@@ -369,8 +367,8 @@ useSeoMeta({
 
           <div class="flex">
             <md-filled-button type="submit" class="grow">
-              Simpan
               <md-icon slot="icon">save</md-icon>
+              Simpan
             </md-filled-button>
           </div>
         </form>

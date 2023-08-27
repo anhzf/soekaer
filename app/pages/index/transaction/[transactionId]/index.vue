@@ -22,13 +22,12 @@ const TRANSACTION_STATUS_ICONS: Record<TransactionStatus, string> = {
   pending: 'clock_loader_10',
   wip: 'clock_loader_40',
   'task-done': 'check',
-  paid: 'paid',
   delivered: 'package',
   done: 'check_all',
   canceled: 'close',
 }
 
-const ALLOWED_UPDATE_STATUSES: TransactionStatus[] = ['pending', 'wip', 'task-done', 'paid', 'delivered', 'canceled'];
+const ALLOWED_UPDATE_STATUSES: TransactionStatus[] = ['pending', 'wip', 'task-done', 'delivered', 'canceled'];
 
 const replaceVars = (template: string, deps: Record<string, unknown>) => Object.entries(deps)
   .reduce((acc, [key, value]) => acc.replace(new RegExp(`{{${key}}}`, 'g'), value as string), template);
@@ -132,6 +131,8 @@ const onUpdateStatusDialogClose = async (ev: Event) => {
 
   const { returnValue } = (ev.target as MdDialog)!;
 
+  console.log(returnValue);
+
   if (returnValue === 'ok') {
     if (newStatus.value !== transaction.value?.data.status) {
       await updateDoc(docRef,
@@ -145,13 +146,6 @@ const onUpdateStatusDialogClose = async (ev: Event) => {
     newStatus.value = transaction.value?.data.status;
   }
 }
-
-watch(() => [
-  !isLoading.value,
-  !!user.value,
-  transaction.value?.data.status,
-  ALLOWED_UPDATE_STATUSES.includes(transaction.value?.data.status || 'wip'),
-], (v) => console.log(v));
 
 useSeoMeta({
   title: 'Detail Transaksi',
@@ -350,8 +344,8 @@ definePageMeta({
       </form>
 
       <div slot="actions">
-        <md-text-button form="transactionUpdateStatusForm" value="cancel">Batalkan</md-text-button>
-        <md-text-button form="transactionUpdateStatusForm" value="ok">Simpan</md-text-button>
+        <md-text-button form="transactionUpdateStatusForm" :value.attr="'cancel'">Batalkan</md-text-button>
+        <md-text-button form="transactionUpdateStatusForm" :value.attr="'ok'">Simpan</md-text-button>
       </div>
     </md-dialog>
   </app-page>

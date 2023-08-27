@@ -62,6 +62,20 @@ const filteredSortedTransactions = computed(() => transactions.value
   // .filter(transaction => (['pending', 'wip', 'task-done'] as TransactionStatus[]).includes(transaction.get('status')))
   .sort((a, b) => b.get('createdAt').toMillis() - a.get('createdAt').toMillis()));
 
+const onDownloadCsvClick = () => {
+  const DELIMITER = ';';
+  const flattened = transactions.value.map(t => t.flatten());
+  const headers = Object.keys(flattened[0]) as (keyof typeof flattened[0])[];
+  const csv = [
+    headers.join(DELIMITER),
+    ...flattened.map((t) => headers.map((h) => (typeof t[h] === 'number' ? t[h] : `"${t[h] ?? ''}"`)).join(DELIMITER)),
+  ].join('\n');
+
+  const blob = new Blob([csv], { type: 'text/csv' });
+
+  window.open(URL.createObjectURL(blob), '_blank');
+}
+
 useSeoMeta({
   title: 'Transaksi',
 });
@@ -211,9 +225,11 @@ useSeoMeta({
         <div class="flex flex-col gap-2">
           <div class="flex items-center gap-2">
             <h2 class="text-title-large">Daftar transaksi</h2>
-            <!-- <md-icon-button>
-              <md-icon>tune</md-icon>
-            </md-icon-button> -->
+            <div class="grow"></div>
+            <md-text-button @click="onDownloadCsvClick">
+              <md-icon slot="icon">download</md-icon>
+              Unduh CSV
+            </md-text-button>
           </div>
 
           <!-- <md-chip-set type="filter">

@@ -9,7 +9,6 @@ export const TRANSACTION_STATUSES = [
   'pending',
   'wip',
   'task-done',
-  'paid',
   'delivered',
   'done',
   'canceled',
@@ -110,5 +109,38 @@ export class Transaction extends Model<ITransaction> {
       || (this.data.discount?.percentageValue ?? 0) * subtotal;
 
     return subtotal - discount;
+  }
+
+  flatten() {
+    return {
+      id: this.id,
+      status: this.data.status,
+      itemCount: this.itemCount,
+      totalPrice: this.totalPrice,
+      estimatedFinishedAt: this.data.estimatedFinishedAt && adapter.dateTimeToDate(this.data.estimatedFinishedAt).toISOString(),
+      paidAmount: this.data.paidAmount,
+      paymentMethod: this.data.paymentMethod,
+      note: this.data.note,
+      createdAt: adapter.dateTimeToDate(this.data.createdAt).toISOString(),
+      updatedAt: adapter.dateTimeToDate(this.data.updatedAt).toISOString(),
+      customerId: this.data.customer.ref.path,
+      customerName: this.data.customer.snapshot.name,
+      customerWhatsAppNumber: this.data.customer.snapshot.whatsAppNumber,
+      createdById: this.data.createdBy.ref.path,
+      createdByName: this.data.createdBy.snapshot.name,
+      receiverId: this.data.receiver?.ref.path,
+      receiverName: this.data.receiver?.snapshot.name,
+      discountName: this.data.discount?.name,
+      discountLabels: this.data.discount?.labels,
+      discountAmountValue: this.data.discount?.amountValue,
+      discountPercentageValue: this.data.discount?.percentageValue,
+      itemNames: this.data.items.map((item) => item.name).join(','),
+      itemPrices: this.data.items.map((item) => item.price).join(','),
+      itemQtys: this.data.items.map((item) => item.qty).join(','),
+      itemNotes: this.data.items.map((item) => item.note).join(','),
+      itemTypes: this.data.items.map((item) => item.type).join(','),
+      itemImageIns: this.data.items.map((item) => item.imageIn).join(','),
+      itemImageOuts: this.data.items.map((item) => item.imageOut).join(','),
+    };
   }
 }
