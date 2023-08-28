@@ -8,9 +8,8 @@ import { IUser, User } from './user';
 export const TRANSACTION_STATUSES = [
   'pending',
   'wip',
-  'task-done',
-  'delivered',
   'done',
+  'delivered',
   'canceled',
 ] as const;
 

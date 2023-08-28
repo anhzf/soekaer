@@ -1,4 +1,3 @@
-import { IAppSettings } from '@anhzf-soekaer/shared/models';
 import { UseTimeAgoMessages, UseTimeAgoUnitNamesDefault, formatTimeAgo } from '@vueuse/core';
 
 export const displayItemName = (item: string) => {

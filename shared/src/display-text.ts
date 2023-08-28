@@ -3,9 +3,8 @@ import { PaymentMethod, TransactionStatus } from './models';
 export const DISPLAY_TRANSACTION_STATUSES: Record<TransactionStatus, string> = {
   pending: 'Dalam antrian',
   wip: 'Sedang dikerjakan',
-  'task-done': 'Selesai',
+  done: 'Sudah dikerjakan',
   delivered: 'Sudah diambil',
-  done: 'Selesai',
   canceled: 'Dibatalkan',
 };
 

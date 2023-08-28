@@ -1,16 +1,63 @@
 <script lang="ts">
 import { DISPLAY_TRANSACTION_STATUSES } from '@anhzf-soekaer/shared';
+import { TRANSACTION_STATUSES, TransactionStatus } from '@anhzf-soekaer/shared/models';
 import '@material/web/checkbox/checkbox';
 import '@material/web/chips/chip-set';
 import '@material/web/chips/filter-chip';
+import '@material/web/dialog/dialog';
+import { MdDialog } from '@material/web/dialog/dialog';
 import '@material/web/iconbutton/icon-button';
-import { Timestamp, query, where } from 'firebase/firestore';
+import '@material/web/menu/menu';
+import '@material/web/menu/menu-item';
+import { formatDate } from '@vueuse/core';
+import { Timestamp, orderBy, query, where } from 'firebase/firestore';
+
+type DateRange = [to: Date, from: Date];
+
+const isToday = (date: Date) => {
+  const today = new Date();
+  return date.getDate() === today.getDate()
+    && date.getMonth() === today.getMonth()
+    && date.getFullYear() === today.getFullYear();
+}
+
+// Make date to the start of the day
+const day00 = (date: Date) => new Date(date.setHours(0, 0, 0, 0));
+// Make date to the end of the day
+const day24 = (date: Date) => new Date(date.setHours(23, 59, 59, 999));
 </script>
 
 <script lang="ts" setup>
 const { data: appSettings } = await useAppSettings();
 
-const { data: transactions, pending: isTransactionsPending } = useCollection(refs().transactions);
+const selectedStatus = ref<Record<TransactionStatus, boolean>>({
+  pending: true,
+  wip: true,
+  done: true,
+  delivered: false,
+  canceled: false,
+});
+
+const dateRangeToday: DateRange = [day00(new Date()), day24(new Date())];
+const dateRangeDefault = dateRangeToday;
+const dateRange = ref<DateRange>([...dateRangeDefault]);
+const isDateRangeToday = computed(() => String(dateRange.value) === String(dateRangeToday));
+
+const transactionQuery = computed(() => {
+  const base = refs().transactions;
+
+  const statuses = Object.entries(selectedStatus.value)
+    .filter(([, selected]) => selected)
+    .map(([status]) => status);
+  const queryStatuses = where('status', 'in', statuses.length ? statuses : ['nothing']);
+
+  const [dateFrom, dateTo] = dateRange.value;
+  const queryDateRange = [where('createdAt', '>', dateFrom), where('createdAt', '<', dateTo)];
+
+  return query(base, queryStatuses, ...queryDateRange, orderBy('createdAt', 'asc'));
+});
+
+const { data: transactions, pending: isTransactionsPending } = useCollection(transactionQuery);
 // today is counted from 00:00:00
 const { data: todayTransactions, pending: isTodayTransactionsPending } = useCollection(query(refs().transactions,
   where('createdAt', '>', Timestamp.fromMillis(new Date().setHours(0, 0, 0, 0))),
@@ -58,9 +105,11 @@ const weeklyPopularItems = computed(() => Object.entries(weeklyTransactions.valu
   .map(([name, count]) => ({ name, count, displayName: appSettings.value!.products[name]?.displayName ?? name }))
 );
 
-const filteredSortedTransactions = computed(() => transactions.value
-  // .filter(transaction => (['pending', 'wip', 'task-done'] as TransactionStatus[]).includes(transaction.get('status')))
-  .sort((a, b) => b.get('createdAt').toMillis() - a.get('createdAt').toMillis()));
+const [isDateRangeDialogOpen] = useToggle();
+
+const onDateRangeDialogClose = (ev: Event) => {
+  isDateRangeDialogOpen.value = false;
+}
 
 const onDownloadCsvClick = () => {
   const DELIMITER = ';';
@@ -232,9 +281,19 @@ useSeoMeta({
             </md-text-button>
           </div>
 
-          <!-- <md-chip-set type="filter">
-            <md-filter-chip label="status: Belum selesai" selected></md-filter-chip>
-          </md-chip-set> -->
+          <div class="flex gap-4">
+            <md-chip-set type="filter">
+              <md-filter-chip
+                :label="isDateRangeToday ? 'Hari ini' : [fmtDateShort(dateRange[0]), fmtDateShort(dateRange[1])].join(' – ')"
+                :selected="isDateRangeToday" @click.prevent="isDateRangeDialogOpen = true">
+                <md-icon slot="icon">date_range</md-icon>
+              </md-filter-chip>
+
+              <md-filter-chip v-for="status in TRANSACTION_STATUSES" :key="status"
+                :label="DISPLAY_TRANSACTION_STATUSES[status]" :selected="selectedStatus[status]"
+                @selected="selectedStatus[status] = $event.target.selected" />
+            </md-chip-set>
+          </div>
         </div>
 
         <table class="surface on-surface-text rounded-$md-sys-shape-corner-medium">
@@ -253,9 +312,8 @@ useSeoMeta({
               </td>
             </tr>
 
-            <template v-else-if="filteredSortedTransactions.length">
-              <tr v-for="transaction in filteredSortedTransactions" :key="transaction.id"
-                class="relative group text-body-medium">
+            <template v-else-if="transactions.length">
+              <tr v-for="transaction in transactions" :key="transaction.id" class="relative group text-body-medium">
                 <td class="px-4 py-3 w-50 text-left text-body-small on-surface-variant-text">
                   {{ displayTransactionTime(transaction.data.createdAt.toDate()) }}
                 </td>
@@ -264,7 +322,7 @@ useSeoMeta({
                 <td class="px-4 py-3 w-40">
                   <div class="flex justify-center gap-2">
                     <span
-                      class="relative text-label-medium line-clamp-1 flex items-center gap-2 px-3 py-1 rounded-$md-sys-shape-corner-small border border-$md-sys-color-outline-variant cursor-default">
+                      class="relative text-label-medium line-clamp-1 flex items-center gap-2 text-center px-3 py-1 rounded-$md-sys-shape-corner-small border border-$md-sys-color-outline-variant cursor-default">
                       {{ DISPLAY_TRANSACTION_STATUSES[transaction.data.status] }}
                     </span>
                   </div>
@@ -272,6 +330,31 @@ useSeoMeta({
                 <NuxtLink :to="{ name: 'index-transaction-transactionId', params: { transactionId: transaction.id } }"
                   class="absolute inset-0" />
                 <md-ripple />
+              </tr>
+
+              <tr class="children:border-t children:border-$md-sys-color-outline">
+                <td colspan="3" class="px-4 py-3 text-label-large font-semibold text-right">
+                  Jumlah transaksi:
+                </td>
+                <td class="px-4 text-headline-small text-right">
+                  {{ transactions.length }}
+                </td>
+              </tr>
+              <tr>
+                <td colspan="3" class="px-4 py-3 text-label-large font-semibold text-right">
+                  Jumlah barang:
+                </td>
+                <td class="px-4 text-headline-small text-right">
+                  {{ transactions.reduce((acc, transaction) => acc + transaction.itemCount, 0) }}
+                </td>
+              </tr>
+              <tr>
+                <td colspan="3" class="px-4 py-3 text-label-large font-semibold text-right">
+                  Nilai transaksi:
+                </td>
+                <td class="px-4 text-headline-small text-right">
+                  {{ fmtCurrency(transactions.reduce((acc, transaction) => acc + transaction.totalPrice, 0)) }}
+                </td>
               </tr>
             </template>
 
@@ -282,5 +365,22 @@ useSeoMeta({
         </table>
       </section>
     </main>
+
+    <md-dialog :open="isDateRangeDialogOpen" @opened="isDateRangeDialogOpen = true" @closed="onDateRangeDialogClose">
+      <div slot="headline">Pilih Tanggal Transaksi</div>
+      <form slot="content" :id="`${$.uid}-changeDateRange`" method="dialog" class="flex items-center gap-2">
+        <md-filled-text-field label="Mulai..." :value="formatDate(dateRange[0], 'YYYY-MM-DDTHH:mm')" type="datetime-local"
+          name="dateFrom" @input="dateRange[0] = new Date($event.target.value)"
+          @focusin="$event.target?.getInput()?.showPicker?.()" class="min-w-30ch" />
+        <span>-</span>
+        <md-filled-text-field label="Sampai..." :value="formatDate(dateRange[1], 'YYYY-MM-DDTHH:mm')" name="dateTo"
+          type="datetime-local" @input="dateRange[1] = new Date($event.target.value)"
+          @focusin="$event.target?.getInput()?.showPicker?.()" class="min-w-30ch" />
+      </form>
+
+      <div slot="actions">
+        <md-text-button :form="`${$.uid}-changeDateRange`">Tutup</md-text-button>
+      </div>
+    </md-dialog>
   </app-page>
 </template>

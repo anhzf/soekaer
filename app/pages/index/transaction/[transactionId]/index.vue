@@ -18,16 +18,8 @@ import { useFirebaseStorage, useStorageFileUrl } from 'vuefire';
 
 const SEND_INVOICE_URL = 'https://api.whatsapp.com/send?phone={{phoneNumber}}&text={{message}}';
 
-const TRANSACTION_STATUS_ICONS: Record<TransactionStatus, string> = {
-  pending: 'clock_loader_10',
-  wip: 'clock_loader_40',
-  'task-done': 'check',
-  delivered: 'package',
-  done: 'check_all',
-  canceled: 'close',
-}
 
-const ALLOWED_UPDATE_STATUSES: TransactionStatus[] = ['pending', 'wip', 'task-done', 'delivered', 'canceled'];
+const ALLOWED_UPDATE_STATUSES: TransactionStatus[] = ['pending', 'wip', 'delivered', 'canceled'];
 
 const replaceVars = (template: string, deps: Record<string, unknown>) => Object.entries(deps)
   .reduce((acc, [key, value]) => acc.replace(new RegExp(`{{${key}}}`, 'g'), value as string), template);
@@ -184,10 +176,11 @@ definePageMeta({
                 <th class="text-label-large on-surface-text text-left font-semibold">Status</th>
                 <td>
                   <div class="flex justify-end items-center gap-2">
-                    <md-assist-chip :label="DISPLAY_TRANSACTION_STATUSES[transaction.data.status]"
+                    <md-assist-chip
+                      :label="DISPLAY_TRANSACTION_STATUSES[transaction.data.status] || transaction.data.status"
                       @click="isEditable && (isUpdateStatusDialogOpen = true)">
                       <md-icon slot="icon">
-                        {{ TRANSACTION_STATUS_ICONS[transaction.data.status] }}
+                        {{ TRANSACTION_STATUS_ICONS[transaction.data.status] || 'circle' }}
                       </md-icon>
                     </md-assist-chip>
                   </div>

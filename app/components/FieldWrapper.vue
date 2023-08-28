@@ -37,5 +37,5 @@ const getValue = (ev: Event) => {
 </script>
 
 <template>
-  <slot :value="modelValue" @[eventName]="$emit('update:modelValue', getValue($event))"></slot>
+  <slot :value="modelValue" @[eventName]="$emit('update:modelValue', getValue($event))" />
 </template>

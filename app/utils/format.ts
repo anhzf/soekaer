@@ -16,6 +16,12 @@ export const fmtDate = (date: Date) => date.toLocaleDateString('id-ID', {
   year: 'numeric',
 });
 
+export const fmtDateShort = (date: Date) => date.toLocaleDateString('id-ID', {
+  day: '2-digit',
+  month: '2-digit',
+  year: 'numeric',
+});
+
 export const fmtTime = (date: Date) => date.toLocaleTimeString('id-ID', {
   hour: '2-digit',
   minute: '2-digit',
@@ -28,3 +34,4 @@ export const fmtCurrency = (amount: number) => new Intl.NumberFormat('id-ID', {
   currency: 'IDR',
   maximumSignificantDigits: 3,
 }).format(amount);
+
