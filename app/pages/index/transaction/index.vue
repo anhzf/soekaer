@@ -10,25 +10,20 @@ import '@material/web/iconbutton/icon-button';
 import '@material/web/menu/menu';
 import '@material/web/menu/menu-item';
 import { formatDate } from '@vueuse/core';
-import { Timestamp, orderBy, query, where } from 'firebase/firestore';
+import { Timestamp, getDocs, orderBy, query, where } from 'firebase/firestore';
 
 type DateRange = [to: Date, from: Date];
 
-const isToday = (date: Date) => {
-  const today = new Date();
-  return date.getDate() === today.getDate()
-    && date.getMonth() === today.getMonth()
-    && date.getFullYear() === today.getFullYear();
-}
-
 // Make date to the start of the day
-const day00 = (date: Date) => new Date(date.setHours(0, 0, 0, 0));
+const day00 = (date = new Date()) => new Date(date.setHours(0, 0, 0, 0));
 // Make date to the end of the day
-const day24 = (date: Date) => new Date(date.setHours(23, 59, 59, 999));
+const day24 = (date = new Date()) => new Date(date.setHours(23, 59, 59, 999));
 </script>
 
 <script lang="ts" setup>
 const { data: appSettings } = await useAppSettings();
+
+const isLoading = ref(false);
 
 const selectedStatus = ref<Record<TransactionStatus, boolean>>({
   pending: true,
@@ -39,7 +34,7 @@ const selectedStatus = ref<Record<TransactionStatus, boolean>>({
 });
 const isPaid = ref(false);
 
-const dateRangeToday: DateRange = [day00(new Date()), day24(new Date())];
+const dateRangeToday: DateRange = [day00(), day24()];
 const dateRangeDefault = dateRangeToday;
 const dateRange = ref<DateRange>([...dateRangeDefault]);
 const isDateRangeToday = computed(() => String(dateRange.value) === String(dateRangeToday));
@@ -63,11 +58,11 @@ const transactionQuery = computed(() => {
 const { data: transactions, pending: isTransactionsPending } = useCollection(transactionQuery);
 // today is counted from 00:00:00
 const { data: todayTransactions, pending: isTodayTransactionsPending } = useCollection(query(refs().transactions,
-  where('createdAt', '>', Timestamp.fromMillis(new Date().setHours(0, 0, 0, 0))),
+  where('createdAt', '>', Timestamp.fromDate(day00())),
 ));
 const { data: todayNewCustomers, pending: isTodayNewCustomersPending } = useCollection(query(
   refs().customers,
-  where('createdAt', '>', Timestamp.fromMillis(new Date().setHours(0, 0, 0, 0))),
+  where('createdAt', '>', Timestamp.fromDate(day00())),
 ));
 
 const { data: weeklyTransactions, pending: isWeeklyTransactionsPending } = useCollection(
@@ -110,22 +105,32 @@ const weeklyPopularItems = computed(() => Object.entries(weeklyTransactions.valu
 
 const [isDateRangeDialogOpen] = useToggle();
 
-const onDateRangeDialogClose = (ev: Event) => {
+const onDateRangeDialogClose = () => {
   isDateRangeDialogOpen.value = false;
 }
 
-const onDownloadCsvClick = () => {
+const onDownloadCsvClick = async () => {
   const DELIMITER = ';';
-  const flattened = transactions.value.map(t => t.flatten());
-  const headers = Object.keys(flattened[0]) as (keyof typeof flattened[0])[];
-  const csv = [
-    headers.join(DELIMITER),
-    ...flattened.map((t) => headers.map((h) => (typeof t[h] === 'number' ? t[h] : `"${t[h] ?? ''}"`)).join(DELIMITER)),
-  ].join('\n');
 
-  const blob = new Blob([csv], { type: 'text/csv' });
+  if (window.prompt('Apakah anda yakin ingin mengekspor semua data transaksi?')) {
+    try {
+      isLoading.value = true;
 
-  window.open(URL.createObjectURL(blob), '_blank');
+      const allTransactions = await getDocs(refs().transactions);
+      const flattened = allTransactions.docs.map(t => t.data().flatten());
+      const headers = Object.keys(flattened[0]) as (keyof typeof flattened[0])[];
+      const csv = [
+        headers.join(DELIMITER),
+        ...flattened.map((t) => headers.map((h) => (typeof t[h] === 'number' ? t[h] : `"${t[h] ?? ''}"`)).join(DELIMITER)),
+      ].join('\n');
+
+      const blob = new Blob([csv], { type: 'text/csv' });
+
+      window.open(URL.createObjectURL(blob), '_blank');
+    } finally {
+      isLoading.value = false;
+    }
+  }
 }
 
 useSeoMeta({
@@ -322,14 +327,17 @@ useSeoMeta({
                 <td class="px-4 py-3 w-50 text-left text-body-small on-surface-variant-text">
                   {{ displayTransactionTime(transaction.data.createdAt.toDate()) }}
                 </td>
-                <td class="px-4 py-3">{{ transaction.data.customer.snapshot.name }}</td>
+                <td class="px-4 py-3">
+                  {{ transaction.data.customer.snapshot.name }}
+                </td>
                 <td class="px-4 py-3 text-left">{{ displayItemName(transaction.data.items[0].name) }}</td>
-                <td class="px-4 py-3 w-40">
+                <td class="px-4 py-3 w-28ch">
                   <div class="flex justify-center gap-2">
                     <span
                       class="relative text-label-medium line-clamp-1 flex items-center gap-2 text-center px-3 py-1 rounded-$md-sys-shape-corner-small border border-$md-sys-color-outline-variant cursor-default">
                       {{ DISPLAY_TRANSACTION_STATUSES[transaction.data.status] }}
                     </span>
+                    <md-icon v-if="transaction.data.isPaid" class="align-middle mr-2 primary-text">check</md-icon>
                   </div>
                 </td>
                 <NuxtLink :to="{ name: 'index-transaction-transactionId', params: { transactionId: transaction.id } }"
@@ -387,5 +395,7 @@ useSeoMeta({
         <md-text-button :form="`${$.uid}-changeDateRange`">Tutup</md-text-button>
       </div>
     </md-dialog>
+
+    <loading-overlay v-if="isLoading" />
   </app-page>
 </template>
