@@ -5,8 +5,6 @@ import { MdMenu } from '@material/web/menu/menu';
 import '@material/web/menu/menu';
 import '@material/web/menu/menu-item';
 import '@material/web/button/outlined-button';
-import '@material/web/dialog/dialog';
-import { MdDialog } from '@material/web/dialog/dialog';
 import { MdOutlinedTextField } from '@material/web/textfield/outlined-text-field';
 import '@material/web/textfield/outlined-text-field';
 import { useTransaction } from './index.vue';
@@ -26,13 +24,8 @@ const { data: transaction, docRef, pending: isTransactionPending } = await useTr
 
 const isLoading = ref(false);
 
-const [isDiscountSelectionOpen, toggleDiscountSelectionOpen] = useToggle();
-
 const fieldDefault = computed(() => ({
   paymentMethod: 'cash',
-  discount: transaction.value?.data.discount?.name || '',
-  discountPercentage: false,
-  paidAmount: transaction.value?.totalPrice,
   image: null as File | null,
 }));
 
@@ -51,16 +44,6 @@ const onPaymentMethodSelect = (method: PaymentMethod) => {
   field.value.paymentMethod = method;
 }
 
-const onDiscountSelectionDialogClose = async (ev: Event) => {
-  isDiscountSelectionOpen.value = false;
-
-  const { returnValue } = (ev.target as MdDialog)!;
-
-  if (returnValue !== 'ok') {
-    field.value.discount = fieldDefault.value.discount;
-  }
-}
-
 const onSubmit = async () => {
   if (window.confirm('Apakah Anda yakin ingin menyelesaikan transaksi ini?') === false) return;
 
@@ -72,11 +55,9 @@ const onSubmit = async () => {
     await updateDoc(docRef,
       'paymentMethod', field.value.paymentMethod,
       'status', 'done',
-      'discount', (settings.value?.discounts[field.value.discount]) ? {
-        name: field.value.discount,
-        ...settings.value?.discounts[field.value.discount],
-      } : null,
-      'paidAmount', transaction.value?.totalPrice === field.value.paidAmount ? null : field.value.paidAmount,
+      'paidAmount', transaction.value?.billedAmount,
+      'paidAt', Timestamp.now(),
+      'isPaid', true,
       'items', [{
         ...transaction.value?.data.items[0],
         imageOut: uploadedImg?.ref.toString(),
@@ -137,6 +118,30 @@ useSeoMeta({
                   {{ transaction.data.items.map(({ name, qty }) => `${displayItemName(name)} (${qty}x)`).join(', ') }}
                 </td>
               </tr>
+              <tr>
+                <th class="text-label-large on-surface-text text-left font-semibold">Total</th>
+                <td class="text-label-large primary-text text-right">
+                  {{ fmtCurrency(transaction.totalPrice) }}
+                </td>
+              </tr>
+              <tr v-if="transaction.data.discount?.amountValue">
+                <th class="text-label-large on-surface-text text-left font-semibold">Diskon</th>
+                <td class="text-label-large primary-text text-right">
+                  -{{ fmtCurrency(transaction.data.discount.amountValue) }}
+                </td>
+              </tr>
+              <tr v-if="transaction.data.discount?.percentageValue">
+                <th class="text-label-large on-surface-text text-left font-semibold">Diskon</th>
+                <td class="text-label-large primary-text text-right">
+                  -{{ fmtCurrency(transaction.totalPrice - (transaction.totalPrice * (1 -
+                    transaction.data.discount.percentageValue))) }}
+                  ({{ transaction.data.discount.percentageValue * 100 }}%)
+                </td>
+              </tr>
+              <tr>
+                <th class="text-label-large on-surface-text text-left align-top font-semibold">Total Tagihan</th>
+                <td class="text-display-small secondary-text text-right">{{ fmtCurrency(transaction.billedAmount) }}</td>
+              </tr>
             </table>
           </div>
 
@@ -147,31 +152,16 @@ useSeoMeta({
               <hr class="divider" />
             </div>
 
-            <field-wrapper v-model="field.paymentMethod" v-slot="bindings">
-              <div class="grow relative">
-                <md-outlined-text-field ref="paymentMethodFieldRef" label="Metode Pembayaran" name="paymentMethod"
-                  required class="w-full" @click="paymentMethodSelectionRef?.show()" v-bind="bindings" />
+            <div class="grow relative">
+              <md-outlined-text-field ref="paymentMethodFieldRef" label="Metode Pembayaran" :value="field.paymentMethod"
+                name="paymentMethod" required readonly class="w-full" @click="paymentMethodSelectionRef?.show()" />
 
-                <md-menu ref="paymentMethodSelectionRef" :anchor="paymentMethodFieldRef" type="option" quick
-                  default-focus="NONE" class="min-w-full max-h-50vh">
-                  <md-menu-item v-for="method in PAYMENT_METHODS" :key="method" :headline="method"
-                    @click="onPaymentMethodSelect(method)" />
-                </md-menu>
-              </div>
-            </field-wrapper>
-
-            <div class="flex items-center gap-4">
-              <md-outlined-text-field :value="field.discount" label="Diskon" name="discount" class="grow" read-only />
-
-              <md-elevated-button type="button" @click="toggleDiscountSelectionOpen()">
-                Pilih diskon
-              </md-elevated-button>
+              <md-menu ref="paymentMethodSelectionRef" :anchor="paymentMethodFieldRef" type="option" quick
+                default-focus="NONE" class="min-w-full max-h-50vh">
+                <md-menu-item v-for="method in PAYMENT_METHODS" :key="method" :headline="method"
+                  @click="onPaymentMethodSelect(method)" />
+              </md-menu>
             </div>
-
-            <field-wrapper v-model="field.paidAmount" v-slot="bindings">
-              <md-outlined-text-field label="Tagihan Akhir" type="number" name="itemPrice" required class="grow"
-                step="500" prefix-text="IDR " v-bind="bindings" />
-            </field-wrapper>
 
             <div class="flex items-center gap-4 flex-wrap">
               <div class="shrink-0 flex flex-col gap-4 self-start">
@@ -200,32 +190,6 @@ useSeoMeta({
         <div class="h-10" />
       </section>
     </main>
-
-    <md-dialog :open="isDiscountSelectionOpen" @opened="toggleDiscountSelectionOpen(true)"
-      @closed="onDiscountSelectionDialogClose">
-      <div slot="headline">Pilih Diskon</div>
-      <form slot="content" id="transactionDiscountSelectionForm" method="dialog">
-        <template v-if="Object.values(settings?.discounts || {}).length">
-          <template v-for="(el, discountName) in settings?.discounts" :key="discountName">
-            <field-wrapper v-model="field.discount" event-name="change" v-slot="{ value, ...bindings }">
-              <label class="flex items-center">
-                <md-radio name="transaction-updateStatus" :value="discountName" :checked="discountName === value"
-                  :aria-label="discountName" touch-target="wrapper" v-bind="bindings" />
-                <span aria-hidden="true">{{ discountName }}</span>
-              </label>
-            </field-wrapper>
-          </template>
-        </template>
-
-        <span v-else>Tidak ada diskon tersedia</span>
-      </form>
-
-      <div slot="actions">
-        <md-text-button form="transactionDiscountSelectionForm" value="cancel">Tutup</md-text-button>
-        <md-text-button form="transactionDiscountSelectionForm" value="ok"
-          :disabled="!field.discount">Pilih</md-text-button>
-      </div>
-    </md-dialog>
 
     <loading-overlay v-if="isLoading" />
   </app-page>

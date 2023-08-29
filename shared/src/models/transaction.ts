@@ -51,6 +51,11 @@ export interface ITransaction {
     percentageValue?: number;
   };
   paidAmount?: number;
+  paidAt?: DateTime;
+  /**
+   * Additional fields due to firebase querying limits
+   */
+  isPaid: boolean;
   paymentMethod?: PaymentMethod;
   receiver?: {
     ref: Reference<User>;
@@ -65,7 +70,7 @@ export interface ITransaction {
   updatedAt: DateTime;
 }
 
-export interface ITransactionCreate extends Pick<ITransaction, 'items'> {
+export interface ITransactionCreate extends Pick<ITransaction, 'items'>, Partial<Pick<ITransaction, 'discount'>> {
   customer: {
     ref: RawReference<Customer>;
     snapshot: PickRequired<ICustomer, 'name' | 'whatsAppNumber'>;
@@ -89,6 +94,8 @@ export class Transaction extends Model<ITransaction> {
       },
       items: data.items,
       status: 'pending',
+      isPaid: false,
+      discount: data.discount,
       createdAt: now(),
       updatedAt: now(),
     });
@@ -103,7 +110,11 @@ export class Transaction extends Model<ITransaction> {
   }
 
   get totalPrice() {
-    const subtotal = this.data.items.reduce((acc, item) => acc + item.price * item.qty, 0);
+    return this.data.items.reduce((acc, item) => acc + item.price * item.qty, 0);
+  }
+
+  get billedAmount() {
+    const subtotal = this.totalPrice;
     const discount = this.data.discount?.amountValue
       || (this.data.discount?.percentageValue ?? 0) * subtotal;
 
@@ -115,7 +126,7 @@ export class Transaction extends Model<ITransaction> {
       id: this.id,
       status: this.data.status,
       itemCount: this.itemCount,
-      totalPrice: this.totalPrice,
+      totalPrice: this.billedAmount,
       estimatedFinishedAt: this.data.estimatedFinishedAt && adapter.dateTimeToDate(this.data.estimatedFinishedAt).toISOString(),
       paidAmount: this.data.paidAmount,
       paymentMethod: this.data.paymentMethod,

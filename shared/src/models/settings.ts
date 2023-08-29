@@ -9,7 +9,7 @@ export interface IAppSettings {
   discounts: {
     [name: string]: {
       amountValue?: number;
-      percentageValue?: string;
+      percentageValue?: number;
       labels?: string[];
     };
   };

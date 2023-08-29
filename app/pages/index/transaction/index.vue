@@ -37,6 +37,7 @@ const selectedStatus = ref<Record<TransactionStatus, boolean>>({
   delivered: false,
   canceled: false,
 });
+const isPaid = ref(false);
 
 const dateRangeToday: DateRange = [day00(new Date()), day24(new Date())];
 const dateRangeDefault = dateRangeToday;
@@ -46,6 +47,8 @@ const isDateRangeToday = computed(() => String(dateRange.value) === String(dateR
 const transactionQuery = computed(() => {
   const base = refs().transactions;
 
+  const queryPaid = where('isPaid', '==', isPaid.value);
+
   const statuses = Object.entries(selectedStatus.value)
     .filter(([, selected]) => selected)
     .map(([status]) => status);
@@ -54,7 +57,7 @@ const transactionQuery = computed(() => {
   const [dateFrom, dateTo] = dateRange.value;
   const queryDateRange = [where('createdAt', '>', dateFrom), where('createdAt', '<', dateTo)];
 
-  return query(base, queryStatuses, ...queryDateRange, orderBy('createdAt', 'asc'));
+  return query(base, queryPaid, queryStatuses, ...queryDateRange, orderBy('createdAt', 'asc'));
 });
 
 const { data: transactions, pending: isTransactionsPending } = useCollection(transactionQuery);
@@ -74,7 +77,7 @@ const { data: weeklyTransactions, pending: isWeeklyTransactionsPending } = useCo
 
 const todayStats = computed(() => ({
   totalTransactions: todayTransactions.value.length,
-  totalValue: todayTransactions.value.reduce((acc, transaction) => acc + transaction.totalPrice, 0),
+  totalValue: todayTransactions.value.reduce((acc, transaction) => acc + transaction.billedAmount, 0),
   totalItems: todayTransactions.value.reduce((acc, transaction) => acc + transaction.data.items.length, 0),
   totalFinished: todayTransactions.value.filter(transaction => transaction.data.status === 'done').length,
   totalNewCustomers: todayNewCustomers.value.length,
@@ -292,6 +295,8 @@ useSeoMeta({
               <md-filter-chip v-for="status in TRANSACTION_STATUSES" :key="status"
                 :label="DISPLAY_TRANSACTION_STATUSES[status]" :selected="selectedStatus[status]"
                 @selected="selectedStatus[status] = $event.target.selected" />
+
+              <md-filter-chip label="Belum bayar" :selected="!isPaid" @selected="isPaid = !isPaid" />
             </md-chip-set>
           </div>
         </div>
@@ -353,7 +358,7 @@ useSeoMeta({
                   Nilai transaksi:
                 </td>
                 <td class="px-4 text-headline-small text-right">
-                  {{ fmtCurrency(transactions.reduce((acc, transaction) => acc + transaction.totalPrice, 0)) }}
+                  {{ fmtCurrency(transactions.reduce((acc, transaction) => acc + transaction.billedAmount, 0)) }}
                 </td>
               </tr>
             </template>

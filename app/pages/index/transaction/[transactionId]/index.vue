@@ -79,7 +79,7 @@ const sendInvoiceUrl = computed(() => {
   const deps = {
     customerName: source.customer.snapshot.name,
     phoneNumber: source.customer.snapshot.whatsAppNumber,
-    totalPrice: transaction.value.totalPrice,
+    totalPrice: transaction.value.billedAmount,
     createdAt: fmtDateTime(source.createdAt.toDate()),
     estimatedFinishedAt: source.estimatedFinishedAt ? fmtDateTime(source.estimatedFinishedAt.toDate()) : '-',
     items: source.items.map(({ name, qty, price }) => `${displayItemName(name)} (${qty}x) = ${fmtCurrency(price)}`).join('\n'),
@@ -100,7 +100,7 @@ const share = () => {
   const deps = {
     customerName: source.customer.snapshot.name,
     phoneNumber: source.customer.snapshot.whatsAppNumber,
-    totalPrice: transaction.value.totalPrice,
+    totalPrice: transaction.value.billedAmount,
     createdAt: fmtDateTime(source.createdAt.toDate()),
     estimatedFinishedAt: source.estimatedFinishedAt ? fmtDateTime(source.estimatedFinishedAt.toDate()) : '-',
     items: source.items.map(({ name, qty, price }) => `${displayItemName(name)} (${qty}x) = ${fmtCurrency(price)}`).join('\n'),
@@ -247,7 +247,7 @@ definePageMeta({
               </tr>
               <tr>
                 <th class="text-label-large on-surface-text text-left align-top font-semibold">Total Tagihan</th>
-                <td class="text-display-small secondary-text text-right">{{ fmtCurrency(transaction.totalPrice) }}</td>
+                <td class="text-display-small secondary-text text-right">{{ fmtCurrency(transaction.billedAmount) }}</td>
               </tr>
             </table>
 

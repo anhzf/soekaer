@@ -4,6 +4,7 @@ import type { MdMenu, MdOutlinedTextField } from '@material/web/all';
 import '@material/web/button/filled-button';
 import '@material/web/button/outlined-button';
 import '@material/web/checkbox/checkbox';
+import '@material/web/chips/assist-chip';
 import '@material/web/chips/filter-chip';
 import '@material/web/chips/input-chip';
 import '@material/web/iconbutton/icon-button';
@@ -69,6 +70,7 @@ const useProducts = (filter: Ref<string>) => {
 
 <script lang="ts" setup>
 const user = useCurrentUser();
+const { data: settings } = await useAppSettings();
 
 const customerNameFieldRef = ref<MdOutlinedTextField>();
 const customerNameSelectionRef = ref<MdMenu>();
@@ -76,6 +78,8 @@ const customerOriginFieldRef = ref<MdOutlinedTextField>();
 const customerOriginSelectionRef = ref<MdMenu>();
 const productFieldRef = ref<MdOutlinedTextField>();
 const productSelectionRef = ref<MdMenu>();
+const discountFieldRef = ref<MdOutlinedTextField>();
+const discountSelectionRef = ref<MdMenu>();
 
 const isLoading = ref(false);
 
@@ -93,6 +97,9 @@ const itemField = ref({
   note: '',
   price: 0,
 });
+const othersField = ref({
+  discount: '',
+})
 
 const itemImgSrcUrl = useObjectUrl(() => itemField.value.image);
 
@@ -109,6 +116,7 @@ const productOptionsFilterThrottled = useThrottle(productOptionsFilter, 800);
 const { data: products, filtered: productOptions, pending: isProductsPending } = useProducts(productOptionsFilterThrottled);
 
 const productFromList = computed(() => products.value.find((product) => product.name === itemField.value.name));
+
 const totalPrice = computed({
   get: () => (itemField.value?.price
     ? itemField.value.price
@@ -116,6 +124,21 @@ const totalPrice = computed({
   set: (v) => {
     itemField.value.price = v;
   },
+});
+
+const billedAmount = computed(() => {
+  const price = totalPrice.value;
+  const selectedDiscount = settings.value?.discounts[othersField.value.discount];
+
+  if (selectedDiscount?.amountValue) {
+    return price - selectedDiscount.amountValue;
+  }
+
+  if (selectedDiscount?.percentageValue) {
+    return price - (price * (selectedDiscount.percentageValue));
+  }
+
+  return price;
 });
 
 const togglePriceAutoCalc = () => {
@@ -155,6 +178,10 @@ const onProductSelect = (selected: Product) => {
   itemField.value.name = selected.name;
 }
 
+const onDiscountSelect = (selected: string) => {
+  othersField.value.discount = selected;
+}
+
 const onSubmit = async () => {
   if (!itemField.value.image) {
     throw new Error("Image is required");
@@ -192,6 +219,10 @@ const onSubmit = async () => {
         imageIn: uploadedImage.ref.toString(),
         price: itemField.value.price || productFromList.value?.price || 0,
       }],
+      discount: {
+        ...settings.value?.discounts[othersField.value.discount],
+        name: othersField.value.discount,
+      },
       createdBy: {
         ref: doc(refs().users, user.value.uid),
         snapshot: {
@@ -334,16 +365,6 @@ useSeoMeta({
               <md-outlined-text-field label="Kondisi Sepatu" type="textarea" name="itemNote" v-bind="bindings" />
             </field-wrapper>
 
-            <div class="flex items-center gap-2">
-              <field-wrapper v-model.number="totalPrice" v-slot="bindings">
-                <md-outlined-text-field label="Total Bayar" type="number" name="itemPrice" required
-                  :disabled="productFromList && !itemField.price" class="grow" step="500" prefix-text="Rp "
-                  v-bind="bindings" />
-                <md-filter-chip v-if="productFromList" label="Hitung otomatis" :selected="!itemField.price"
-                  @selected="togglePriceAutoCalc" />
-              </field-wrapper>
-            </div>
-
             <div class="flex items-center gap-4 flex-wrap">
               <div class="shrink-0 flex flex-col gap-4 self-start">
                 <span class="text-body-medium">Foto sepatu:</span>
@@ -361,19 +382,63 @@ useSeoMeta({
                 <img :src="itemImgSrcUrl" alt="foto sepatu" class="w-full  h-full object-cover">
               </div>
             </div>
+
+            <div class="flex flex-col gap-2">
+              <p class="text-label-large">Tagihan</p>
+              <hr class="divider" />
+            </div>
+
+            <div class="flex items-center gap-2">
+              <field-wrapper v-model.number="totalPrice" v-slot="bindings">
+                <md-outlined-text-field label="Total Bayar" type="number" name="itemPrice" required
+                  :disabled="productFromList && !itemField.price" class="grow" step="500" prefix-text="Rp "
+                  v-bind="bindings" />
+                <md-filter-chip v-if="productFromList" label="Hitung otomatis" :selected="!itemField.price"
+                  @selected="togglePriceAutoCalc" />
+              </field-wrapper>
+            </div>
+
+            <div class="flex items-center gap-4">
+              <div class="grow relative">
+                <md-outlined-text-field ref="discountFieldRef" label="Diskon" :value="othersField.discount || '-'"
+                  name="discount" readonly class="w-full" @click="discountSelectionRef?.show()">
+                  <md-icon-button v-if="othersField.discount" slot="trailingicon" type="button"
+                    @click="othersField.discount = ''">
+                    <md-icon>close</md-icon>
+                  </md-icon-button>
+                </md-outlined-text-field>
+
+                <md-menu ref="discountSelectionRef" :anchor="discountFieldRef" type="option" quick default-focus="NONE"
+                  class="min-w-full max-h-50vh">
+                  <md-menu-item v-for="(_, discountName) in settings?.discounts" :key="discountName"
+                    :headline="discountName" @click="onDiscountSelect(discountName as string)" />
+                </md-menu>
+              </div>
+
+              <template v-if="settings?.discounts[othersField.discount]">
+                <md-assist-chip v-if="settings.discounts[othersField.discount].amountValue"
+                  :label="`- ${fmtCurrency(settings.discounts[othersField.discount].amountValue!)}`" elevated />
+                <md-assist-chip v-else-if="settings.discounts[othersField.discount].percentageValue"
+                  :label="`Diskon ${settings.discounts[othersField.discount].percentageValue! * 100}%`" elevated />
+              </template>
+            </div>
+
+            <md-outlined-text-field label="Total Bayar" :value="billedAmount" prefix-text="Rp" readonly>
+              <md-icon slot="leadingicon">equal</md-icon>
+            </md-outlined-text-field>
           </div>
 
           <hr class="divider" />
 
           <div class="flex">
             <md-filled-button type="submit" class="grow">
-              <md-icon slot="icon">save</md-icon>
               Simpan
+              <md-icon slot="icon">save</md-icon>
             </md-filled-button>
           </div>
         </form>
 
-        <loading-overlay v-if="isLoading"></loading-overlay>
+        <loading-overlay v-if="isLoading" />
       </section>
     </main>
   </app-page>

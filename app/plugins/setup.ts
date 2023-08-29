@@ -5,7 +5,7 @@ import '@material/web/ripple/ripple';
 import '@material/web/progress/circular-progress';
 import { Timestamp, doc } from 'firebase/firestore';
 
-export default defineNuxtPlugin(async () => {
+export default defineNuxtPlugin(() => {
   setAdapter({
     dateTimeFromDate: (date) => Timestamp.fromDate(date),
     dateTimeToDate: (date) => date.toDate(),
