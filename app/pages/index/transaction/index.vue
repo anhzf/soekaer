@@ -127,6 +127,9 @@ const onDownloadCsvClick = async () => {
       const blob = new Blob([csv], { type: 'text/csv' });
 
       window.open(URL.createObjectURL(blob), '_blank');
+    } catch (err: any) {
+      console.error(err);
+      alert(err.message || String(err));
     } finally {
       isLoading.value = false;
     }

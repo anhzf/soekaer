@@ -18,10 +18,16 @@ const [showPassword, toggleShowPassword] = useToggle();
 const onSubmit = async () => {
   if (!auth) throw new Error("Auth is not defined");
 
-  isPending.value = true;
-  await signInWithEmailAndPassword(auth, field.value.email, field.value.password);
-  isPending.value = false;
-  navigateTo({ name: 'index-transaction' });
+  try {
+    isPending.value = true;
+    await signInWithEmailAndPassword(auth, field.value.email, field.value.password);
+    navigateTo({ name: 'index-transaction' });
+  } catch (error: any) {
+    console.error(error);
+    alert(error.message || String(error));
+  } finally {
+    isPending.value = false;
+  }
 };
 
 // definePageMeta({

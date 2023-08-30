@@ -7,3 +7,9 @@ export const TRANSACTION_STATUS_ICONS: Record<TransactionStatus, string> = {
   done: 'check_all',
   canceled: 'close',
 }
+
+export const handleError = (error: any) => {
+  if (error) {
+
+  }
+}
