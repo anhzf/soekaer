@@ -1,6 +1,6 @@
 <script lang="ts" setup>
 useSeoMeta({
-  titleTemplate: (title) => [title, 'Soekaer'].filter(Boolean).join(' - '),
+  titleTemplate: (title) => [title, 'Spotz Cleaning Solution'].filter(Boolean).join(' - '),
 });
 </script>
 

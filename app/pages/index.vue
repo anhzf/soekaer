@@ -61,7 +61,7 @@ definePageMeta({
 </script>
 
 <template>
-  <div class="w-full h-100dvh surface-container on-surface-text flex children:rounded-$md-sys-shape-corner-large">
+  <div class="w-full h-100dvh surface-container on-surface-text flex">
     <nav-item-template v-slot="{ label, icon, to, onClick }">
       <li class="inline-full inline-flex flex-col">
         <component :is="to ? NuxtLink : 'button'" v-bind="{ to, onClick }" class="nav-item">
@@ -79,17 +79,18 @@ definePageMeta({
       enter-to-class="translate-x-0" leave-active-class="transform transition-transform" leave-from-class="translate-x-0"
       leave-to-class="-translate-x-full">
       <aside v-if="showDrawer"
-        class="shrink-0 fixed sm:static w-xs flex flex-col z-1 left-0 inset-y-0 sm:pl-6 sm:pr-3 sm:py-6 children:rounded-inherit"
+        class="shrink-0 fixed sm:static w-xs flex flex-col z-2 sm:z-1 left-0 inset-y-0 sm:pl-6 sm:pr-3 sm:py-6 overflow-y-auto"
         style="--md-elevation-level: 1;">
         <md-elevation />
 
-        <div class="fixed block sm:hidden inset-0 -z-1 bg-#0005" @click.self="toggleShowDrawer()"></div>
+        <div class="fixed block sm:hidden inset-0 -z-1 bg-#0005" @click.self="toggleShowDrawer()" />
 
-        <nav class="grow flex flex-col sm:gap-6">
+        <nav
+          class="grow flex flex-col sm:gap-6 rounded-r-$md-sys-shape-corner-large sm:rounded-l-$md-sys-shape-corner-large">
           <div
             class="grow surface-container-low on-surface-text flex flex-col rounded-b-none sm:rounded-b-inherit rounded-inherit">
             <div class="p-3">
-              <h1 class="text-title-large">Soekaer</h1>
+              <h1 class="text-title-large">Spotz Cleaning Solution</h1>
             </div>
 
             <hr class="divider" />
@@ -105,7 +106,7 @@ definePageMeta({
             <!-- User info -->
             <NuxtLink to="/" class="relative p-2 flex gap-3 rounded-$md-sys-shape-corner-full">
               <div
-                class="block-14 inline-14 inline-flex bg-$md-sys-color-tertiary-container text-$md-sys-color-tertiary flex-col justify-center items-center rounded-full">
+                class="shrink-0 block-14 inline-14 inline-flex bg-$md-sys-color-tertiary-container text-$md-sys-color-tertiary flex-col justify-center items-center rounded-full">
                 <span class="text-title-large">A</span>
               </div>
               <div class="inline-flex flex-col justify-center">

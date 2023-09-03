@@ -1,6 +1,8 @@
 <script lang="ts">
 import { DISPLAY_TRANSACTION_STATUSES } from '@anhzf-soekaer/shared';
+import { Transaction } from '@anhzf-soekaer/shared/models';
 import { TRANSACTION_STATUSES, TransactionStatus } from '@anhzf-soekaer/shared/models';
+import '@material/web/button/text-button';
 import '@material/web/checkbox/checkbox';
 import '@material/web/chips/chip-set';
 import '@material/web/chips/filter-chip';
@@ -10,7 +12,7 @@ import '@material/web/iconbutton/icon-button';
 import '@material/web/menu/menu';
 import '@material/web/menu/menu-item';
 import { formatDate } from '@vueuse/core';
-import { Timestamp, getDocs, orderBy, query, where } from 'firebase/firestore';
+import { QueryFieldFilterConstraint, Timestamp, deleteDoc, doc, getDocs, orderBy, query, where } from 'firebase/firestore';
 
 type DateRange = [to: Date, from: Date];
 
@@ -41,18 +43,22 @@ const isDateRangeToday = computed(() => String(dateRange.value) === String(dateR
 
 const transactionQuery = computed(() => {
   const base = refs().transactions;
+  const queries = [
+    where('isPaid', '==', isPaid.value),
+  ] as QueryFieldFilterConstraint[];
 
-  const queryPaid = where('isPaid', '==', isPaid.value);
 
   const statuses = Object.entries(selectedStatus.value)
     .filter(([, selected]) => selected)
     .map(([status]) => status);
-  const queryStatuses = where('status', 'in', statuses.length ? statuses : ['nothing']);
+  queries.push(where('status', 'in', statuses.length ? statuses : ['nothing']));
 
+  // if (dateRange.value) {
   const [dateFrom, dateTo] = dateRange.value;
-  const queryDateRange = [where('createdAt', '>', dateFrom), where('createdAt', '<', dateTo)];
+  queries.push(where('createdAt', '>', dateFrom), where('createdAt', '<', dateTo));
+  // }
 
-  return query(base, queryPaid, queryStatuses, ...queryDateRange, orderBy('createdAt', 'asc'));
+  return query(base, ...queries, orderBy('createdAt', 'asc'));
 });
 
 const { data: transactions, pending: isTransactionsPending } = useCollection(transactionQuery);
@@ -130,6 +136,20 @@ const onDownloadCsvClick = async () => {
     } catch (err: any) {
       console.error(err);
       alert(err.message || String(err));
+    } finally {
+      isLoading.value = false;
+    }
+  }
+}
+
+const onDeleteTransactionClick = async (transaction: Transaction) => {
+  if (window.confirm('Apakah anda yakin ingin menghapus transaksi ini?')) {
+    isLoading.value = true;
+    try {
+      await deleteDoc(doc(refs().transactions, transaction.id));
+    } catch (err: any) {
+      console.error(err);
+      window.alert(err.message || String(err));
     } finally {
       isLoading.value = false;
     }
@@ -309,13 +329,14 @@ useSeoMeta({
           </div>
         </div>
 
-        <table class="surface on-surface-text rounded-$md-sys-shape-corner-medium">
+        <table class="surface on-surface-text rounded-$md-sys-shape-corner-medium overflow-x-auto">
           <thead class="border-b border-$md-sys-color-outline">
             <tr class="text-label-medium font-semibold">
               <th class="px-4 py-3 text-left">Waktu</th>
               <th class="px-4 py-3 text-left">Nama Pelanggan</th>
               <th class="px-4 py-3 text-left">Nama Barang</th>
               <th class="px-4 py-3 ">Status</th>
+              <th class="px-4 py-3 "></th>
             </tr>
           </thead>
           <tbody>
@@ -343,13 +364,22 @@ useSeoMeta({
                     <md-icon v-if="transaction.data.isPaid" class="align-middle mr-2 primary-text">check</md-icon>
                   </div>
                 </td>
-                <NuxtLink :to="{ name: 'index-transaction-transactionId', params: { transactionId: transaction.id } }"
-                  class="absolute inset-0" />
-                <md-ripple />
+                <td class="px-4 py-3 flex justify-end gap-2">
+                  <NuxtLink :to="{ name: 'index-transaction-transactionId', params: { transactionId: transaction.id } }"
+                    custom v-slot="{ navigate, href, ...nuxtLinkBindings }">
+                    <md-elevated-button :href="href" @click="navigate"
+                      v-bind="nuxtLinkBindings">Lihat</md-elevated-button>
+                  </NuxtLink>
+                  <md-icon-button style="--md-icon-button-icon-color: var(--md-sys-color-error)"
+                    @click="onDeleteTransactionClick(transaction)">
+                    <md-icon>delete</md-icon>
+                  </md-icon-button>
+                </td>
+                <!-- <md-ripple /> -->
               </tr>
 
               <tr class="children:border-t children:border-$md-sys-color-outline">
-                <td colspan="3" class="px-4 py-3 text-label-large font-semibold text-right">
+                <td colspan="4" class="px-4 py-3 text-label-large font-semibold text-right">
                   Jumlah transaksi:
                 </td>
                 <td class="px-4 text-headline-small text-right">
@@ -357,7 +387,7 @@ useSeoMeta({
                 </td>
               </tr>
               <tr>
-                <td colspan="3" class="px-4 py-3 text-label-large font-semibold text-right">
+                <td colspan="4" class="px-4 py-3 text-label-large font-semibold text-right">
                   Jumlah barang:
                 </td>
                 <td class="px-4 text-headline-small text-right">
@@ -365,7 +395,7 @@ useSeoMeta({
                 </td>
               </tr>
               <tr>
-                <td colspan="3" class="px-4 py-3 text-label-large font-semibold text-right">
+                <td colspan="4" class="px-4 py-3 text-label-large font-semibold text-right">
                   Nilai transaksi:
                 </td>
                 <td class="px-4 text-headline-small text-right">
@@ -375,7 +405,7 @@ useSeoMeta({
             </template>
 
             <tr v-else>
-              <td colspan="4" class="text-body-medium text-center py-3">Tidak ada data yang ditampilkan</td>
+              <td colspan="5" class="text-body-medium text-center py-3">Tidak ada data yang ditampilkan</td>
             </tr>
           </tbody>
         </table>

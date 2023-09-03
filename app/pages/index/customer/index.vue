@@ -1,7 +1,19 @@
 <script lang="ts" setup>
-import { query } from 'firebase/firestore';
+import { Customer } from '@anhzf-soekaer/shared/models';
+import { deleteDoc, doc, query } from 'firebase/firestore';
 
 const { data: customers, pending: isCustomersPending } = useCollection(query(refs().customers));
+
+const onDeleteCustomerClick = async (customer: Customer) => {
+  if (window.confirm('Apakah Anda yakin ingin menghapus pelanggan ini?')) {
+    try {
+      await deleteDoc(doc(refs().customers, customer.id));
+    } catch (error: any) {
+      console.error(error);
+      alert(error.message || String(error));
+    }
+  }
+}
 
 useSeoMeta({
   title: 'Daftar Pelanggan',
@@ -22,6 +34,7 @@ useSeoMeta({
               <th class="px-4 py-3 text-left">Instansi</th>
               <th class="px-4 py-3 text-left">Nomor WhatsApp</th>
               <th class="px-4 py-3 text-left">Transaksi Terakhir</th>
+              <th class="px-4 py-3"></th>
             </tr>
           </thead>
           <tbody>
@@ -37,6 +50,12 @@ useSeoMeta({
                 <td class="px-4 py-3 text-left">{{ customer.data.origin }}</td>
                 <td class="px-4 py-3 text-left">{{ customer.data.whatsAppNumber }}</td>
                 <td class="px-4 py-3 text-left">-</td>
+                <td class="px-4 py-3 text-right">
+                  <md-icon-button style="--md-icon-button-icon-color: var(--md-sys-color-error)"
+                    @click="onDeleteCustomerClick(customer)">
+                    <md-icon>delete</md-icon>
+                  </md-icon-button>
+                </td>
                 <md-ripple />
               </tr>
             </template>
