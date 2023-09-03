@@ -30,8 +30,6 @@ export default defineNuxtConfig({
         { rel: "mask-icon", href: "/safari-pinned-tab.svg", color: "#5bbad5" },
         { rel: "preconnect", href: "https://fonts.gstatic.com", crossorigin: 'anonymous' },
         { href: "https://fonts.googleapis.com/css2?family=Roboto:wght@100;300;400;500;700;900&display=swap", rel: "stylesheet" },
-        // { rel: 'preload', href: 'https://fonts.gstatic.com/s/materialsymbolsoutlined/v129/kJF1BvYX7BgnkSrUwT8OhrdQw4oELdPIeeII9v6oDMzByHX9rA6RzaxHMPdY43zj-jCxv3fzvRNU22ZXGJpEpjC_1v-p_4MrImHCIJIZrDCvHOej.woff2', as: 'font', type: 'font/woff2', crossorigin: 'anonymous' },
-        { rel: 'stylesheet', href: 'https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined' },
 
       ],
       meta: [
