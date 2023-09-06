@@ -88,7 +88,7 @@ const onSubmitInvoiceMessageTemplate = async () => {
   try {
     await updateDoc(refs().appSettings,
       'invoiceMessageTemplate',
-      settings.value?.invoiceMessageTemplate,
+      invoiceMessageTemplateField.value,
       'updatedAt',
       Timestamp.now(),
     );
