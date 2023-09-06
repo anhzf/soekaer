@@ -60,7 +60,7 @@ const onSubmit = async () => {
       'isPaid', true,
       'items', [{
         ...transaction.value?.data.items[0],
-        imageOut: uploadedImg?.ref.toString(),
+        imageOut: uploadedImg?.ref.toString() || transaction.value?.data.items[0].imageOut,
       }],
       'receiver', {
       ref: doc(refs().users, user.value!.uid),
@@ -169,7 +169,7 @@ useSeoMeta({
                 <md-outlined-button type="button">
                   Pilih gambar
                   <md-icon slot="icon">add_a_photo</md-icon>
-                  <input type="file" accept=".png,.jpeg,.jpg" name="image" required
+                  <input type="file" accept=".png,.jpeg,.jpg" name="image"
                     class="absolute inset-0 opacity-0 cursor-pointer"
                     @change="field.image = ($event.target as HTMLInputElement)?.files?.[0] || null" />
                 </md-outlined-button>
@@ -177,7 +177,8 @@ useSeoMeta({
 
               <div
                 class="grow group relative surface-container-low aspect-4/3 rounded-$md-sys-shape-corner-large overflow-hidden">
-                <img :src="imgSrcUrl" alt="foto sepatu" class="w-full  h-full object-cover">
+                <img :src="imgSrcUrl || transaction.data.items[0].imageOut" alt="foto sepatu"
+                  class="w-full  h-full object-cover">
               </div>
             </div>
           </form>
