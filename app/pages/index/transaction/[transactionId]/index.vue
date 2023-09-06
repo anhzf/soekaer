@@ -13,7 +13,7 @@ import '@material/web/menu/menu';
 import '@material/web/radio/radio';
 import '@material/web/textfield/outlined-text-field';
 import { Timestamp, doc, updateDoc } from 'firebase/firestore';
-import { ref as storageRef } from 'firebase/storage';
+import { ref as storageRef, uploadBytes } from 'firebase/storage';
 import { useFirebaseStorage, useStorageFileUrl } from 'vuefire';
 
 const SEND_INVOICE_URL = 'https://api.whatsapp.com/send?phone={{phoneNumber}}&text={{message}}';
@@ -65,6 +65,9 @@ const copy = async () => {
 
 const newStatus = ref(transaction.value?.data.status);
 syncRefs(() => transaction.value?.data.status, newStatus);
+
+const newImage = ref(transaction.value?.data.items[0].imageOut);
+syncRefs(() => transaction.value?.data.items[0].imageOut, newImage);
 
 const imgInRef = computed(() => transaction.value?.data.items[0].imageIn ? storageRef(storageBucket, transaction.value?.data.items[0].imageIn) : null);
 const imgOutRef = computed(() => transaction.value?.data.items[0].imageOut ? storageRef(storageBucket, transaction.value?.data.items[0].imageOut) : null);
@@ -118,6 +121,12 @@ const isEditable = computed(() => !isLoading.value
   && !!user.value
   && ALLOWED_UPDATE_STATUSES.includes(transaction.value?.data.status || 'wip'));
 
+
+const uploadNewImage = (file: File) => {
+  const fileRef = storageRef(useFirebaseStorage(), `/transactions/items/${Date.now()}_${file.name}`)
+  return uploadBytes(fileRef, file);
+}
+
 const onUpdateStatusDialogClose = async (ev: Event) => {
   isUpdateStatusDialogOpen.value = false;
 
@@ -136,6 +145,33 @@ const onUpdateStatusDialogClose = async (ev: Event) => {
     }
   } else {
     newStatus.value = transaction.value?.data.status;
+  }
+}
+
+const onUpdateImageChange = async (ev: Event) => {
+  const file = (ev.target as HTMLInputElement)?.files?.[0] || null;
+
+  if (!file) return;
+
+  isLoading.value = true;
+
+  try {
+    const uploadedImg = await uploadNewImage(file);
+
+    await updateDoc(docRef,
+      'items', [{
+        ...transaction.value?.data.items[0],
+        imageOut: uploadedImg?.ref.toString(),
+      }],
+      'updatedAt', Timestamp.now(),
+    );
+
+    window.alert('Gambar berhasil diperbarui!');
+  } catch (err: any) {
+    window.alert(`Terjadi kesalahan saat mengunggah gambar. Silakan coba lagi.\n${err.message || String(err)}`);
+    console.error(err);
+  } finally {
+    isLoading.value = false;
   }
 }
 
@@ -317,6 +353,12 @@ definePageMeta({
         </div>
       </div>
       <div slot="actions">
+        <md-text-button v-if="user" type="button">
+          Perbarui gambar
+          <input type="file" accept=".png,.jpeg,.jpg" name="itemNewImage"
+            class="absolute inset-0 opacity-0 cursor-pointer" @change="onUpdateImageChange" />
+        </md-text-button>
+        <div class="grow" />
         <md-text-button @click="isImageDialogOpen = false;">Tutup</md-text-button>
       </div>
     </md-dialog>
