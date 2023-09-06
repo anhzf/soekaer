@@ -1,7 +1,7 @@
 <script lang="ts">
 import { DISPLAY_TRANSACTION_STATUSES } from '@anhzf-soekaer/shared';
-import { Transaction } from '@anhzf-soekaer/shared/models';
-import { TRANSACTION_STATUSES, TransactionStatus } from '@anhzf-soekaer/shared/models';
+import { Transaction, TRANSACTION_STATUSES, TransactionStatus } from '@anhzf-soekaer/shared/models';
+import { day00, day24 } from '@anhzf-soekaer/shared/utils';
 import '@material/web/button/text-button';
 import '@material/web/checkbox/checkbox';
 import '@material/web/chips/chip-set';
@@ -11,15 +11,9 @@ import { MdDialog } from '@material/web/dialog/dialog';
 import '@material/web/iconbutton/icon-button';
 import '@material/web/menu/menu';
 import '@material/web/menu/menu-item';
-import { formatDate } from '@vueuse/core';
-import { QueryFieldFilterConstraint, Timestamp, deleteDoc, doc, getDocs, orderBy, query, where } from 'firebase/firestore';
+import { deleteDoc, doc, getDocs, orderBy, query, QueryFieldFilterConstraint, Timestamp, where } from 'firebase/firestore';
 
 type DateRange = [to: Date, from: Date];
-
-// Make date to the start of the day
-const day00 = (date = new Date()) => new Date(date.setHours(0, 0, 0, 0));
-// Make date to the end of the day
-const day24 = (date = new Date()) => new Date(date.setHours(23, 59, 59, 999));
 </script>
 
 <script lang="ts" setup>
@@ -415,13 +409,13 @@ useSeoMeta({
     <md-dialog :open="isDateRangeDialogOpen" @opened="isDateRangeDialogOpen = true" @closed="onDateRangeDialogClose">
       <div slot="headline">Pilih Tanggal Transaksi</div>
       <form slot="content" :id="`${$.uid}-changeDateRange`" method="dialog" class="flex items-center gap-2">
-        <md-filled-text-field label="Mulai..." :value="formatDate(dateRange[0], 'YYYY-MM-DDTHH:mm')" type="datetime-local"
-          name="dateFrom" @input="dateRange[0] = new Date($event.target.value)"
-          @focusin="$event.target?.getInput()?.showPicker?.()" class="min-w-30ch" />
+        <md-filled-text-field label="Mulai..." :value="fmtDateToInput(dateRange[0])" type="datetime-local" name="dateFrom"
+          @input="dateRange[0] = new Date($event.target.value)" @focusin="$event.target?.getInput()?.showPicker?.()"
+          class="min-w-30ch" />
         <span>-</span>
-        <md-filled-text-field label="Sampai..." :value="formatDate(dateRange[1], 'YYYY-MM-DDTHH:mm')" name="dateTo"
-          type="datetime-local" @input="dateRange[1] = new Date($event.target.value)"
-          @focusin="$event.target?.getInput()?.showPicker?.()" class="min-w-30ch" />
+        <md-filled-text-field label="Sampai..." :value="fmtDateToInput(dateRange[1])" name="dateTo" type="datetime-local"
+          @input="dateRange[1] = new Date($event.target.value)" @focusin="$event.target?.getInput()?.showPicker?.()"
+          class="min-w-30ch" />
       </form>
 
       <div slot="actions">

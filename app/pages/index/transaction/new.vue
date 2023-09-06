@@ -99,7 +99,8 @@ const itemField = ref({
 });
 const othersField = ref({
   discount: '',
-})
+  finishEstimation: new Date(Date.now() + 1000 * 60 * 60 * 24 * 3),
+});
 
 const itemImgSrcUrl = useObjectUrl(() => itemField.value.image);
 
@@ -382,6 +383,11 @@ useSeoMeta({
                 <img :src="itemImgSrcUrl" alt="foto sepatu" class="w-full  h-full object-cover">
               </div>
             </div>
+
+            <md-outlined-text-field label="Estimasi selesai" :value="fmtDateToInput(othersField.finishEstimation)"
+              name="estimationDate" type="datetime-local"
+              @input="othersField.finishEstimation = new Date($event.target.value)"
+              @focusin="$event.target?.getInput()?.showPicker?.()" />
 
             <div class="flex flex-col gap-2">
               <p class="text-label-large">Tagihan</p>
