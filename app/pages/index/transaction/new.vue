@@ -116,30 +116,30 @@ const productOptionsFilter = computed(() => itemField.value.name);
 const productOptionsFilterThrottled = useThrottle(productOptionsFilter, 800);
 const { data: products, filtered: productOptions, pending: isProductsPending } = useProducts(productOptionsFilterThrottled);
 
-const productFromList = computed(() => products.value.find((product) => product.name === itemField.value.name));
+const productFromList = computedEager(() => products.value.find((product) => product.name === itemField.value.name));
 
-const totalPrice = computed({
-  get: () => (itemField.value?.price
-    ? itemField.value.price
-    : itemField.value.qty * (productFromList.value?.price || 0)),
-  set: (v) => {
-    itemField.value.price = v;
-  },
-});
+const totalPrice = computedEager(() => itemField.value.price || ((productFromList.value?.price || 0) * itemField.value.qty));
+
+// const totalPrice = computed({
+//   get: () => itemField.value.price || (productFromList.value?.price || 0) * itemField.value.qty,
+//   set: (v) => {
+//     itemField.value.price = v;
+//   },
+// });
 
 const billedAmount = computed(() => {
-  const price = totalPrice.value;
+  const subtotal = totalPrice.value;
   const selectedDiscount = settings.value?.discounts[othersField.value.discount];
 
   if (selectedDiscount?.amountValue) {
-    return price - selectedDiscount.amountValue;
+    return subtotal - selectedDiscount.amountValue;
   }
 
   if (selectedDiscount?.percentageValue) {
-    return price - (price * (selectedDiscount.percentageValue));
+    return subtotal - (subtotal * (selectedDiscount.percentageValue));
   }
 
-  return price;
+  return subtotal;
 });
 
 const togglePriceAutoCalc = () => {
@@ -357,10 +357,8 @@ useSeoMeta({
               </field-wrapper>
             </div>
 
-            <field-wrapper v-model.number="itemField.qty" v-slot="bindings">
-              <md-outlined-text-field label="Jumlah Pasang Sepatu" name="itemQty" type="number" required
-                v-bind="bindings" />
-            </field-wrapper>
+            <md-outlined-text-field label="Jumlah Pasang Sepatu" :value="itemField.qty" name="itemQty" type="number"
+              required @input="itemField.qty = Number($event.target.value)" />
 
             <field-wrapper v-model="itemField.note" v-slot="bindings">
               <md-outlined-text-field label="Kondisi Sepatu" type="textarea" name="itemNote" v-bind="bindings" />
@@ -395,13 +393,11 @@ useSeoMeta({
             </div>
 
             <div class="flex items-center gap-2">
-              <field-wrapper v-model.number="totalPrice" v-slot="bindings">
-                <md-outlined-text-field label="Total Bayar" type="number" name="itemPrice" required
-                  :disabled="productFromList && !itemField.price" class="grow" step="500" prefix-text="Rp "
-                  v-bind="bindings" />
-                <md-filter-chip v-if="productFromList" label="Hitung otomatis" :selected="!itemField.price"
-                  @selected="togglePriceAutoCalc" />
-              </field-wrapper>
+              <md-outlined-text-field label="Total Bayar" :value="totalPrice" type="number" name="itemPrice" required
+                :disabled="productFromList && !itemField.price" class="grow" step="500" prefix-text="Rp "
+                @change="itemField.price = Number($event.target.value) || 100" />
+              <md-filter-chip v-if="productFromList" label="Hitung otomatis" :selected="!itemField.price"
+                @selected="togglePriceAutoCalc" />
             </div>
 
             <div class="flex items-center gap-4">
