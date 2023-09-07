@@ -78,7 +78,8 @@ export interface ITransactionCreate extends Pick<ITransaction, 'items'>, Partial
   createdBy: {
     ref: RawReference<User>;
     snapshot: PickRequired<IUser, 'name'>;
-  }
+  };
+  estimatedFinishedAt?: Date;
 }
 
 export class Transaction extends Model<ITransaction> {
@@ -96,6 +97,7 @@ export class Transaction extends Model<ITransaction> {
       status: 'pending',
       isPaid: false,
       discount: data.discount,
+      estimatedFinishedAt: data.estimatedFinishedAt && adapter.dateTimeFromDate(data.estimatedFinishedAt),
       createdAt: now(),
       updatedAt: now(),
     });

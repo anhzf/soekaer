@@ -224,6 +224,7 @@ const onSubmit = async () => {
         ...settings.value?.discounts[othersField.value.discount],
         name: othersField.value.discount,
       },
+      estimatedFinishedAt: othersField.value.finishEstimation,
       createdBy: {
         ref: doc(refs().users, user.value.uid),
         snapshot: {
