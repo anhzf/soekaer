@@ -50,6 +50,7 @@ export interface ITransaction {
      */
     percentageValue?: number;
   };
+  customTotalPrice?: number;
   paidAmount?: number;
   paidAt?: DateTime;
   /**
@@ -70,7 +71,7 @@ export interface ITransaction {
   updatedAt: DateTime;
 }
 
-export interface ITransactionCreate extends Pick<ITransaction, 'items'>, Partial<Pick<ITransaction, 'discount'>> {
+export interface ITransactionCreate extends Pick<ITransaction, 'items'>, Partial<Pick<ITransaction, 'discount' | 'customTotalPrice'>> {
   customer: {
     ref: RawReference<Customer>;
     snapshot: PickRequired<ICustomer, 'name' | 'whatsAppNumber'>;
@@ -96,6 +97,7 @@ export class Transaction extends Model<ITransaction> {
       items: data.items,
       status: 'pending',
       isPaid: false,
+      customTotalPrice: data.customTotalPrice,
       discount: data.discount,
       estimatedFinishedAt: data.estimatedFinishedAt && adapter.dateTimeFromDate(data.estimatedFinishedAt),
       createdAt: now(),
@@ -112,7 +114,7 @@ export class Transaction extends Model<ITransaction> {
   }
 
   get totalPrice() {
-    return this.data.items.reduce((acc, item) => acc + item.price * item.qty, 0);
+    return this.data.customTotalPrice || this.data.items.reduce((acc, item) => acc + item.price * item.qty, 0);
   }
 
   get billedAmount() {
@@ -130,6 +132,7 @@ export class Transaction extends Model<ITransaction> {
       itemCount: this.itemCount,
       totalPrice: this.billedAmount,
       estimatedFinishedAt: this.data.estimatedFinishedAt && adapter.dateTimeToDate(this.data.estimatedFinishedAt).toISOString(),
+      customTotalPrice: this.data.customTotalPrice,
       paidAmount: this.data.paidAmount,
       paymentMethod: this.data.paymentMethod,
       note: this.data.note,

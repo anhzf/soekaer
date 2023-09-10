@@ -95,11 +95,11 @@ const itemField = ref({
   qty: 1,
   image: null as File | null,
   note: '',
-  price: 0,
 });
 const othersField = ref({
   discount: '',
   finishEstimation: new Date(Date.now() + 1000 * 60 * 60 * 24 * 3),
+  totalPrice: 0,
 });
 
 const itemImgSrcUrl = useObjectUrl(() => itemField.value.image);
@@ -118,14 +118,7 @@ const { data: products, filtered: productOptions, pending: isProductsPending } =
 
 const productFromList = computedEager(() => products.value.find((product) => product.name === itemField.value.name));
 
-const totalPrice = computedEager(() => itemField.value.price || ((productFromList.value?.price || 0) * itemField.value.qty));
-
-// const totalPrice = computed({
-//   get: () => itemField.value.price || (productFromList.value?.price || 0) * itemField.value.qty,
-//   set: (v) => {
-//     itemField.value.price = v;
-//   },
-// });
+const totalPrice = computedEager(() => othersField.value.totalPrice || ((productFromList.value?.price || 0) * itemField.value.qty));
 
 const billedAmount = computed(() => {
   const subtotal = totalPrice.value;
@@ -143,10 +136,10 @@ const billedAmount = computed(() => {
 });
 
 const togglePriceAutoCalc = () => {
-  if (itemField.value.price) {
-    itemField.value.price = 0;
+  if (othersField.value.totalPrice) {
+    othersField.value.totalPrice = 0;
   } else {
-    itemField.value.price = productFromList.value?.price || 0;
+    othersField.value.totalPrice = productFromList.value?.price || 0;
   }
 }
 
@@ -184,17 +177,17 @@ const onDiscountSelect = (selected: string) => {
 }
 
 const onSubmit = async () => {
-  if (!itemField.value.image) {
-    throw new Error("Image is required");
-  }
-
-  if (!user.value) {
-    throw new Error("Unauthenticated");
-  }
-
-  isLoading.value = true;
-
   try {
+    if (!itemField.value.image) {
+      throw new Error("Image is required");
+    }
+
+    if (!user.value) {
+      throw new Error("Unauthenticated");
+    }
+
+    isLoading.value = true;
+
     const createCustomer = () => customerActions.create(Customer.create({
       name: customerField.value.name,
       whatsAppNumber: customerField.value.whatsAppNumber,
@@ -218,8 +211,9 @@ const onSubmit = async () => {
         qty: itemField.value.qty,
         note: itemField.value.note,
         imageIn: uploadedImage.ref.toString(),
-        price: itemField.value.price || productFromList.value?.price || 0,
+        price: productFromList.value?.price || 0,
       }],
+      customTotalPrice: othersField.value.totalPrice,
       discount: {
         ...settings.value?.discounts[othersField.value.discount],
         name: othersField.value.discount,
@@ -237,6 +231,9 @@ const onSubmit = async () => {
 
     navigateTo({ name: 'index-transaction-transactionId', params: { transactionId: created.id } });
 
+  } catch (err: any) {
+    window.alert(err.message || String(err));
+    console.error(err);
   } finally {
     isLoading.value = false;
   }
@@ -395,9 +392,9 @@ useSeoMeta({
 
             <div class="flex items-center gap-2">
               <md-outlined-text-field label="Total Bayar" :value="totalPrice" type="number" name="itemPrice" required
-                :disabled="productFromList && !itemField.price" class="grow" step="500" prefix-text="Rp "
-                @change="itemField.price = Number($event.target.value) || 100" />
-              <md-filter-chip v-if="productFromList" label="Hitung otomatis" :selected="!itemField.price"
+                :disabled="productFromList && !othersField.totalPrice" class="grow" step="500" prefix-text="Rp "
+                @change="othersField.totalPrice = Number($event.target.value) || 100" />
+              <md-filter-chip v-if="productFromList" label="Hitung otomatis" :selected="!othersField.totalPrice"
                 @selected="togglePriceAutoCalc" />
             </div>
 
