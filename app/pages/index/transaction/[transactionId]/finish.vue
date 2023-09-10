@@ -14,12 +14,10 @@ import { useFirebaseStorage } from 'vuefire';
 </script>
 
 <script lang="ts" setup>
-const paymentMethodFieldRef = ref<MdOutlinedTextField>();
 const paymentMethodSelectionRef = ref<MdMenu>();
 
 const user = useCurrentUser();
 
-const { data: settings } = await useAppSettings();
 const { data: transaction, docRef, pending: isTransactionPending } = await useTransaction();
 
 const isLoading = ref(false);
@@ -153,10 +151,11 @@ useSeoMeta({
             </div>
 
             <div class="grow relative">
-              <md-outlined-text-field ref="paymentMethodFieldRef" label="Metode Pembayaran" :value="field.paymentMethod"
-                name="paymentMethod" required readonly class="w-full" @click="paymentMethodSelectionRef?.show()" />
+              <md-outlined-text-field id="finishTransaction-paymentMethodField" label="Metode Pembayaran"
+                :value="field.paymentMethod" name="paymentMethod" required readonly class="w-full"
+                @click="paymentMethodSelectionRef?.show()" />
 
-              <md-menu ref="paymentMethodSelectionRef" :anchor="paymentMethodFieldRef" type="option" quick
+              <md-menu ref="paymentMethodSelectionRef" anchor="finishTransaction-paymentMethodField" type="option" quick
                 default-focus="NONE" class="min-w-full max-h-50vh">
                 <md-menu-item v-for="method in PAYMENT_METHODS" :key="method" :headline="method"
                   @click="onPaymentMethodSelect(method)" />

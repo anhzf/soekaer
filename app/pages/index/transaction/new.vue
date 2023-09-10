@@ -72,13 +72,9 @@ const useProducts = (filter: Ref<string>) => {
 const user = useCurrentUser();
 const { data: settings } = await useAppSettings();
 
-const customerNameFieldRef = ref<MdOutlinedTextField>();
 const customerNameSelectionRef = ref<MdMenu>();
-const customerOriginFieldRef = ref<MdOutlinedTextField>();
 const customerOriginSelectionRef = ref<MdMenu>();
-const productFieldRef = ref<MdOutlinedTextField>();
 const productSelectionRef = ref<MdMenu>();
-const discountFieldRef = ref<MdOutlinedTextField>();
 const discountSelectionRef = ref<MdMenu>();
 
 const isLoading = ref(false);
@@ -271,7 +267,7 @@ useSeoMeta({
             <div class="relative">
               <div class="flex gap-4 items-center">
                 <field-wrapper v-model="customerField.name" v-slot="bindings">
-                  <md-outlined-text-field ref="customerNameFieldRef" label="Nama Pelanggan" name="customerName"
+                  <md-outlined-text-field id="newTransaction-customerNameField" label="Nama Pelanggan" name="customerName"
                     :disabled="customerField.id" required class="w-full" v-bind="bindings">
                     <md-icon v-if="customerField.id" slot="leadingicon">person_check</md-icon>
                   </md-outlined-text-field>
@@ -282,7 +278,7 @@ useSeoMeta({
                 </md-icon-button>
               </div>
 
-              <md-menu ref="customerNameSelectionRef" :anchor="customerNameFieldRef" type="option" quick
+              <md-menu ref="customerNameSelectionRef" anchor="newTransaction-customerNameField" type="option" quick
                 default-focus="NONE" class="min-w-full max-h-50vh">
                 <div v-if="isCustomerNameOptionsPending" class="flex justify-center">
                   <md-circular-progress indeterminate />
@@ -311,13 +307,13 @@ useSeoMeta({
                 </label>
 
                 <div class="grow relative">
-                  <md-outlined-text-field ref="customerOriginFieldRef" label="Instansi" name="customerOrigin"
-                    :disabled="customerField.id || customerField.origin === Customer.DEFAULT_ORIGIN" required
-                    class="w-full" v-bind="bindings">
+                  <md-outlined-text-field id="newTransaction-customerOriginFieldRef" label="Instansi"
+                    name="customerOrigin" :disabled="customerField.id || customerField.origin === Customer.DEFAULT_ORIGIN"
+                    required class="w-full" v-bind="bindings">
                   </md-outlined-text-field>
 
-                  <md-menu ref="customerOriginSelectionRef" :anchor="customerOriginFieldRef" type="option" quick
-                    default-focus="NONE" class="min-w-full max-h-50vh">
+                  <md-menu ref="customerOriginSelectionRef" anchor="newTransaction-customerOriginFieldRef" type="option"
+                    quick default-focus="NONE" class="min-w-full max-h-50vh">
                     <div v-if="customerOriginOptionsStatus === 'pending'" class="flex justify-center">
                       <md-circular-progress indeterminate />
                     </div>
@@ -339,10 +335,10 @@ useSeoMeta({
             <div class="relative">
               <field-wrapper :model-value="productFromList?.displayName"
                 @update:model-value="itemField.name = $event || ''" v-slot="bindings">
-                <md-outlined-text-field ref="productFieldRef" label="Jenis Cuci" name="itemName" required class="w-full"
-                  v-bind="bindings" @click="productOptions.length && productSelectionRef?.show()" />
-                <md-menu ref="productSelectionRef" :anchor="productFieldRef" type="option" quick default-focus="NONE"
-                  class="min-w-full max-h-50vh">
+                <md-outlined-text-field id="newTransaction-productField" label="Jenis Cuci" name="itemName" required
+                  class="w-full" v-bind="bindings" @click="productOptions.length && productSelectionRef?.show()" />
+                <md-menu ref="productSelectionRef" anchor="newTransaction-productField" type="option" quick
+                  default-focus="NONE" class="min-w-full max-h-50vh">
                   <div v-if="isProductsPending" class="flex justify-center">
                     <md-circular-progress indeterminate />
                   </div>
@@ -400,16 +396,17 @@ useSeoMeta({
 
             <div class="flex items-center gap-4">
               <div class="grow relative">
-                <md-outlined-text-field ref="discountFieldRef" label="Diskon" :value="othersField.discount || '-'"
-                  name="discount" readonly class="w-full" @click="discountSelectionRef?.show()">
+                <md-outlined-text-field id="newTransaction-discountField" label="Diskon"
+                  :value="othersField.discount || '-'" name="discount" readonly class="w-full"
+                  @click="discountSelectionRef?.show()">
                   <md-icon-button v-if="othersField.discount" slot="trailingicon" type="button"
                     @click="othersField.discount = ''">
                     <md-icon>close</md-icon>
                   </md-icon-button>
                 </md-outlined-text-field>
 
-                <md-menu ref="discountSelectionRef" :anchor="discountFieldRef" type="option" quick default-focus="NONE"
-                  class="min-w-full max-h-50vh">
+                <md-menu ref="discountSelectionRef" anchor="newTransaction-discountField" type="option" quick
+                  default-focus="NONE" class="min-w-full max-h-50vh">
                   <md-menu-item v-for="(_, discountName) in settings?.discounts" :key="discountName"
                     :headline="discountName" @click="onDiscountSelect(discountName as string)" />
                 </md-menu>
