@@ -15,11 +15,11 @@ import '@material/web/textfield/outlined-text-field';
 import { doc, query, where } from 'firebase/firestore';
 import { ref as storageRef, uploadBytes } from 'firebase/storage';
 import { useFirebaseStorage } from 'vuefire';
+import { Mutable } from 'utils/types';
+import { TransactionItem } from '@anhzf-soekaer/shared/models';
 
-interface Product {
-  name: string;
-  price: number;
-  displayName?: string;
+interface OrderedProduct extends Omit<TransactionItem, 'imageIn'> {
+  imageIn: File | null;
 }
 
 const useCustomers = (filter: Ref<string>) => {
@@ -69,12 +69,20 @@ const useProducts = (filter: Ref<string>) => {
 </script>
 
 <script lang="ts" setup>
+const DEFAULT_ITEM = Object.freeze({
+  name: '' as string,
+  type: '' as string,
+  qty: 1 as number,
+  image: null as File | null,
+  note: '' as string,
+});
+const isDefaultItem = (item: typeof DEFAULT_ITEM) => Object.entries(item).every(([key, value]) => DEFAULT_ITEM[key as keyof typeof DEFAULT_ITEM] === value);
+
 const user = useCurrentUser();
 const { data: settings } = await useAppSettings();
 
 const customerNameSelectionRef = ref<MdMenu>();
 const customerOriginSelectionRef = ref<MdMenu>();
-const productSelectionRef = ref<MdMenu>();
 const discountSelectionRef = ref<MdMenu>();
 
 const isLoading = ref(false);
@@ -92,13 +100,12 @@ const itemField = ref({
   image: null as File | null,
   note: '',
 });
+const experimental_itemsField = ref<(Mutable<typeof DEFAULT_ITEM>)[]>([{ ...DEFAULT_ITEM }]);
 const othersField = ref({
   discount: '',
   finishEstimation: new Date(Date.now() + 1000 * 60 * 60 * 24 * 3),
   totalPrice: 0,
 });
-
-const itemImgSrcUrl = useObjectUrl(() => itemField.value.image);
 
 const customerNameOptionsFilter = computed(() => customerField.value.id ? '' : customerField.value.name);
 const customerNameOptionsFilterThrottled = useThrottle(customerNameOptionsFilter, 800);
@@ -110,11 +117,26 @@ const { data: customerOriginOptions, status: customerOriginOptionsStatus } = use
 
 const productOptionsFilter = computed(() => itemField.value.name);
 const productOptionsFilterThrottled = useThrottle(productOptionsFilter, 800);
-const { data: products, filtered: productOptions, pending: isProductsPending } = useProducts(productOptionsFilterThrottled);
+const { data: products, pending: isProductsPending } = useProducts(productOptionsFilterThrottled);
+const productOptions = computed(() => products.value.map(product => ({
+  value: product.name,
+  label: product.displayName,
+  subtitle: fmtCurrency(product.price)
+})));
 
-const productFromList = computedEager(() => products.value.find((product) => product.name === itemField.value.name));
+const orderedProducts = computed<OrderedProduct[]>(() => products.value.filter((product) => experimental_itemsField.value.some(item => item.name === product.name))
+  .map((product) => {
+    const fromList = experimental_itemsField.value.find(item => item.name === product.name)!;
 
-const totalPrice = computedEager(() => othersField.value.totalPrice || ((productFromList.value?.price || 0) * itemField.value.qty));
+    return {
+      ...product,
+      qty: fromList.qty || 1,
+      note: fromList.note,
+      imageIn: fromList.image,
+    };
+  }));
+
+const totalPrice = computedEager(() => othersField.value.totalPrice || ((orderedProducts.value.reduce((acc, item) => acc + item.price * item.qty, 0))));
 
 const billedAmount = computed(() => {
   const subtotal = totalPrice.value;
@@ -135,7 +157,7 @@ const togglePriceAutoCalc = () => {
   if (othersField.value.totalPrice) {
     othersField.value.totalPrice = 0;
   } else {
-    othersField.value.totalPrice = productFromList.value?.price || 0;
+    othersField.value.totalPrice = totalPrice.value;
   }
 }
 
@@ -164,20 +186,23 @@ const onCustomerOriginSelect = (selected: string) => {
   customerField.value.origin = selected;
 }
 
-const onProductSelect = (selected: Product) => {
-  itemField.value.name = selected.name;
-}
-
 const onDiscountSelect = (selected: string) => {
   othersField.value.discount = selected;
 }
 
+const onAddItemClick = () => {
+  // Only add item when the last item is not empty
+  if (!(experimental_itemsField.value.at(-1) && isDefaultItem(experimental_itemsField.value.at(-1)!))) {
+    experimental_itemsField.value.push({ ...DEFAULT_ITEM });
+  }
+}
+
+const onDeleteItemClick = (i: number) => {
+  experimental_itemsField.value.splice(i, 1);
+}
+
 const onSubmit = async () => {
   try {
-    if (!itemField.value.image) {
-      throw new Error("Image is required");
-    }
-
     if (!user.value) {
       throw new Error("Unauthenticated");
     }
@@ -194,21 +219,21 @@ const onSubmit = async () => {
       ? (await customerActions.get(customerField.value.id) || await createCustomer())
       : await createCustomer();
 
-    const uploadedImage = await uploadImage(itemField.value.image);
+    const items = await Promise.all(orderedProducts.value.map(async ({ imageIn, ...product }) => {
+      const uploadedImg = await uploadImage(imageIn!);
+
+      return {
+        ...product,
+        imageIn: uploadedImg.ref.toString(),
+      };
+    }));
 
     const transaction = Transaction.create({
       customer: {
         ref: doc(refs().customers, customer.id),
         snapshot: customer.data,
       },
-      items: [{
-        name: itemField.value.name,
-        type: itemField.value.type,
-        qty: itemField.value.qty,
-        note: itemField.value.note,
-        imageIn: uploadedImage.ref.toString(),
-        price: productFromList.value?.price || 0,
-      }],
+      items,
       customTotalPrice: othersField.value.totalPrice,
       discount: {
         ...settings.value?.discounts[othersField.value.discount],
@@ -332,47 +357,61 @@ useSeoMeta({
               <hr class="divider" />
             </div>
 
-            <div class="relative">
-              <field-wrapper :model-value="productFromList?.displayName"
-                @update:model-value="itemField.name = $event || ''" v-slot="bindings">
-                <md-outlined-text-field id="newTransaction-productField" label="Jenis Cuci" name="itemName" required
-                  class="w-full" v-bind="bindings" @click="productOptions.length && productSelectionRef?.show()" />
-                <md-menu ref="productSelectionRef" anchor="newTransaction-productField" type="option" quick
-                  default-focus="NONE" class="min-w-full max-h-50vh">
-                  <div v-if="isProductsPending" class="flex justify-center">
-                    <md-circular-progress indeterminate />
+            <div class="flex flex-col gap-4">
+              <div v-for="(item, i) in experimental_itemsField" :key="i" class="flex gap-2">
+                <div class="text-label-large on-surface-variant-text p-1 align-middle"
+                  :class="[i % 2 === 0 ? 'surface-variant' : 'surface-dim']">
+                  {{ i + 1 }}
+                </div>
+
+                <div class="grow flex flex-col gap-2">
+                  <div class="flex gap-2">
+                    <text-field-autocomplete :model-value="item.name" display-value="label" label="Jenis Cuci"
+                      :options="productOptions" :input-id="`newTransaction-productField${i}`"
+                      :input-name="`item[${i}].name`" :loading="isProductsPending" class="grow"
+                      @update:model-value="experimental_itemsField[i].name = $event" />
+                    <md-outlined-text-field label="Jumlah Pasang Sepatu" :value="item.qty" :name="`item[${i}].qty`"
+                      type="number" required class="w-10ch"
+                      @input="experimental_itemsField[i].qty = Number($event.target.value)" />
                   </div>
 
-                  <template v-else>
-                    <md-menu-item v-for="opt in productOptions" :key="opt.name" :headline="opt.displayName"
-                      :supporting-text="fmtCurrency(opt.price)" @click="onProductSelect(opt)" />
-                  </template>
-                </md-menu>
-              </field-wrapper>
-            </div>
+                  <field-wrapper :model-value="item.note" @update:model-value="experimental_itemsField[i].name"
+                    v-slot="bindings">
+                    <md-outlined-text-field label="Kondisi Sepatu" type="textarea" :name="`item[${i}].note`"
+                      v-bind="bindings" />
+                  </field-wrapper>
 
-            <md-outlined-text-field label="Jumlah Pasang Sepatu" :value="itemField.qty" name="itemQty" type="number"
-              required @input="itemField.qty = Number($event.target.value)" />
+                  <div class="flex items-center gap-4 flex-wrap">
+                    <div class="shrink-0 flex flex-col gap-4 self-start">
+                      <span class="text-body-medium">Foto sepatu:</span>
+                      <md-outlined-button type="button">
+                        Pilih gambar
+                        <md-icon slot="icon">add_a_photo</md-icon>
+                        <input type="file" accept=".png,.jpeg,.jpg" name="itemImage"
+                          class="absolute inset-0 opacity-0 cursor-pointer"
+                          @change="experimental_itemsField[i].image = ($event.target as HTMLInputElement)?.files?.[0] || null" />
+                      </md-outlined-button>
+                    </div>
 
-            <field-wrapper v-model="itemField.note" v-slot="bindings">
-              <md-outlined-text-field label="Kondisi Sepatu" type="textarea" name="itemNote" v-bind="bindings" />
-            </field-wrapper>
+                    <div
+                      class="grow group relative surface-container-low aspect-4/3 rounded-$md-sys-shape-corner-large overflow-hidden">
+                      <img :src="item.image ? createObjectUrl(item.image) : ''" alt="foto sepatu"
+                        class="w-full  h-full object-cover">
+                    </div>
+                  </div>
+                </div>
 
-            <div class="flex items-center gap-4 flex-wrap">
-              <div class="shrink-0 flex flex-col gap-4 self-start">
-                <span class="text-body-medium">Foto sepatu:</span>
-                <md-outlined-button type="button">
-                  Pilih gambar
-                  <md-icon slot="icon">add_a_photo</md-icon>
-                  <input type="file" accept=".png,.jpeg,.jpg" name="itemImage"
-                    class="absolute inset-0 opacity-0 cursor-pointer"
-                    @change="itemField.image = ($event.target as HTMLInputElement)?.files?.[0] || null" />
-                </md-outlined-button>
+                <md-icon-button class="self-center" @click="onDeleteItemClick(i)">
+                  <md-icon>delete</md-icon>
+                </md-icon-button>
               </div>
 
-              <div
-                class="grow group relative surface-container-low aspect-4/3 rounded-$md-sys-shape-corner-large overflow-hidden">
-                <img :src="itemImgSrcUrl" alt="foto sepatu" class="w-full  h-full object-cover">
+              <div class="flex gap-2">
+                <md-outlined-button type="button" :disabled="isDefaultItem(experimental_itemsField.at(-1)!)"
+                  @click="onAddItemClick">
+                  Tambah barang
+                  <md-icon slot="icon">add</md-icon>
+                </md-outlined-button>
               </div>
             </div>
 
@@ -388,9 +427,9 @@ useSeoMeta({
 
             <div class="flex items-center gap-2">
               <md-outlined-text-field label="Total Bayar" :value="totalPrice" type="number" name="itemPrice" required
-                :disabled="productFromList && !othersField.totalPrice" class="grow" step="500" prefix-text="Rp "
+                :disabled="!othersField.totalPrice" class="grow" step="500" prefix-text="Rp "
                 @change="othersField.totalPrice = Number($event.target.value) || 100" />
-              <md-filter-chip v-if="productFromList" label="Hitung otomatis" :selected="!othersField.totalPrice"
+              <md-filter-chip v-if="orderedProducts.length" label="Hitung otomatis" :selected="!othersField.totalPrice"
                 @selected="togglePriceAutoCalc" />
             </div>
 

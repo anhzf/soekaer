@@ -348,7 +348,9 @@ useSeoMeta({
                 <td class="px-4 py-3">
                   {{ transaction.data.customer.snapshot.name }}
                 </td>
-                <td class="px-4 py-3 text-left">{{ displayItemName(transaction.data.items[0].name) }}</td>
+                <td class="px-4 py-3 text-left">{{ transaction.data.items.map((item) =>
+                  displayItemName(item.name)).join(', ') }}
+                </td>
                 <td class="px-4 py-3 w-28ch">
                   <div class="flex justify-center gap-2">
                     <span
@@ -369,7 +371,6 @@ useSeoMeta({
                     <md-icon>delete</md-icon>
                   </md-icon-button>
                 </td>
-                <!-- <md-ripple /> -->
               </tr>
 
               <tr class="children:border-t children:border-$md-sys-color-outline">

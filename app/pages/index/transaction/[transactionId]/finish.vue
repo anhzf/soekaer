@@ -9,8 +9,10 @@ import { MdOutlinedTextField } from '@material/web/textfield/outlined-text-field
 import '@material/web/textfield/outlined-text-field';
 import { useTransaction } from './index.vue';
 import { Timestamp, doc, updateDoc } from 'firebase/firestore';
-import { ref as storageRef, uploadBytes } from 'firebase/storage';
+import { ref as storageRef, uploadBytes, UploadResult } from 'firebase/storage';
 import { useFirebaseStorage } from 'vuefire';
+
+const isFile = (file: unknown): file is File => file instanceof File;
 </script>
 
 <script lang="ts" setup>
@@ -26,12 +28,12 @@ const fieldDefault = computed(() => ({
   paymentMethod: 'cash',
   image: null as File | null,
 }));
-
 const field = ref(fieldDefault.value);
-
 syncRefs(fieldDefault, field);
 
-const imgSrcUrl = useObjectUrl(() => field.value.image);
+const experimental_imagesDefault = computed(() => transaction.value?.data.items.map(({ imageOut }) => imageOut || null) as (File | string | null)[]);
+const experimental_imagesField = ref(experimental_imagesDefault.value);
+syncRefs(experimental_imagesDefault, experimental_imagesField);
 
 const uploadImage = (file: File) => {
   const fileRef = storageRef(useFirebaseStorage(), `/transactions/items/${Date.now()}_${file.name}`)
@@ -48,7 +50,16 @@ const onSubmit = async () => {
   isLoading.value = true;
 
   try {
-    const uploadedImg = field.value.image ? await uploadImage(field.value.image) : null;
+    const items = transaction.value?.data.items.map(async (item, i) => {
+      const uploadedImg = experimental_imagesField.value[i] instanceof File
+        ? await uploadImage(experimental_imagesField.value[i] as File)
+        : null;
+
+      return {
+        ...item,
+        imageOut: uploadedImg?.ref.toString() || item.imageOut || null,
+      };
+    }) || [];
 
     await updateDoc(docRef,
       'paymentMethod', field.value.paymentMethod,
@@ -56,10 +67,7 @@ const onSubmit = async () => {
       'paidAmount', transaction.value?.billedAmount,
       'paidAt', Timestamp.now(),
       'isPaid', true,
-      'items', [{
-        ...transaction.value?.data.items[0],
-        imageOut: uploadedImg?.ref.toString() || transaction.value?.data.items[0].imageOut,
-      }],
+      'items', await Promise.all(items),
       'receiver', {
       ref: doc(refs().users, user.value!.uid),
       snapshot: {
@@ -162,22 +170,30 @@ useSeoMeta({
               </md-menu>
             </div>
 
-            <div class="flex items-center gap-4 flex-wrap">
-              <div class="shrink-0 flex flex-col gap-4 self-start">
-                <span class="text-body-medium">Foto sepatu:</span>
-                <md-outlined-button type="button">
-                  Pilih gambar
-                  <md-icon slot="icon">add_a_photo</md-icon>
-                  <input type="file" accept=".png,.jpeg,.jpg" name="image"
-                    class="absolute inset-0 opacity-0 cursor-pointer"
-                    @change="field.image = ($event.target as HTMLInputElement)?.files?.[0] || null" />
-                </md-outlined-button>
-              </div>
+            <div class="flex flex-col gap-4">
+              <div v-for="(item, i) in transaction.data.items" :key="item.name" class="flex items-center gap-4 flex-wrap">
+                <div class="self-stretch text-label-large on-surface-variant-text p-1 align-middle"
+                  :class="[i % 2 === 0 ? 'surface-variant' : 'surface-dim']">
+                  {{ i + 1 }}
+                </div>
 
-              <div
-                class="grow group relative surface-container-low aspect-4/3 rounded-$md-sys-shape-corner-large overflow-hidden">
-                <img :src="imgSrcUrl || transaction.data.items[0].imageOut" alt="foto sepatu"
-                  class="w-full  h-full object-cover">
+                <div class="shrink-0 flex flex-col gap-4 self-start">
+                  <span class="text-body-medium">Foto sepatu:</span>
+                  <md-outlined-button type="button">
+                    Pilih gambar
+                    <md-icon slot="icon">add_a_photo</md-icon>
+                    <input type="file" accept=".png,.jpeg,.jpg" name="image"
+                      class="absolute inset-0 opacity-0 cursor-pointer"
+                      @change="experimental_imagesField[i] = ($event.target as HTMLInputElement)?.files?.[0] || null" />
+                  </md-outlined-button>
+                </div>
+
+                <div
+                  class="grow group relative surface-container-low aspect-4/3 rounded-$md-sys-shape-corner-large overflow-hidden">
+                  <img
+                    :src="isFile(experimental_imagesField[i]) ? createObjectUrl(experimental_imagesField[i] as unknown as File) : experimental_imagesField[i]"
+                    alt="foto sepatu" class="w-full  h-full object-cover">
+                </div>
               </div>
             </div>
           </form>
