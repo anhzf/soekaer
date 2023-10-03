@@ -4,7 +4,7 @@ export const DISPLAY_TRANSACTION_STATUSES: Record<TransactionStatus, string> = {
   pending: 'Dalam antrian',
   wip: 'Sedang dikerjakan',
   done: 'Sudah dikerjakan',
-  delivered: 'Sudah diambil',
+  delivered: 'Sudah bisa diambil',
   canceled: 'Dibatalkan',
 };
 
