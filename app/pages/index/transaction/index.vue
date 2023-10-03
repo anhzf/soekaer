@@ -77,7 +77,7 @@ const todayStats = computed(() => ({
   totalFinished: todayTransactions.value.filter(transaction => transaction.data.status === 'done').length,
   totalNewCustomers: todayNewCustomers.value.length,
   mostPopularItem: todayTransactions.value
-    .map(transaction => transaction.data.items[0])
+    .flatMap(transaction => transaction.data.items)
     .reduce((acc, item) => {
       if (acc.name === item.name) {
         acc.count += item.qty;
@@ -88,17 +88,18 @@ const todayStats = computed(() => ({
     }, { name: '-', count: 0 }),
 }));
 
-const weeklyPopularItems = computed(() => Object.entries(weeklyTransactions.value
-  .map(transaction => transaction.data.items[0])
-  .reduce((acc, item) => {
-    if (acc[item.name]) {
-      acc[item.name] += item.qty;
-    } else {
-      acc[item.name] = item.qty;
-    }
-    return acc;
-  }, {} as Record<string, number>))
-  .sort((a, b) => b[1] - a[1])
+const weeklyPopularItems = computed(() => Object.entries(
+  weeklyTransactions.value
+    .flatMap(transaction => transaction.data.items)
+    .reduce((acc, item) => {
+      if (acc[item.name]) {
+        acc[item.name] += item.qty;
+      } else {
+        acc[item.name] = item.qty;
+      }
+      return acc;
+    }, {} as Record<string, number>),
+).sort((a, b) => b[1] - a[1])
   .slice(0, 5)
   .map(([name, count]) => ({ name, count, displayName: appSettings.value!.products[name]?.displayName ?? name }))
 );
