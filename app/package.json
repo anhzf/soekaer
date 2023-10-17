@@ -9,9 +9,9 @@
     "postinstall": "nuxt prepare"
   },
   "devDependencies": {
-    "@anhzf-soekaer/shared": "link:..\\shared",
+    "@anhzf-soekaer/shared": "file:../shared",
     "@firebase/app-types": "^0.9.0",
-    "@material/web": "1.0.0-pre.17",
+    "@material/web": "^1.0.0",
     "@nuxt/devtools": "latest",
     "@types/node": "^18.17.1",
     "@unocss/nuxt": "^0.54.1",
