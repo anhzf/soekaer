@@ -13,8 +13,8 @@ import '@material/web/menu/menu';
 import '@material/web/radio/radio';
 import '@material/web/textfield/outlined-text-field';
 import { Timestamp, doc, updateDoc } from 'firebase/firestore';
-import { ref as storageRef, uploadBytes } from 'firebase/storage';
-import { useFirebaseStorage, useStorageFileUrl } from 'vuefire';
+import { getDownloadURL, ref as storageRef, uploadBytes } from 'firebase/storage';
+import { useFirebaseStorage } from 'vuefire';
 
 const SEND_INVOICE_URL = 'https://api.whatsapp.com/send?phone={{phoneNumber}}&text={{message}}';
 
@@ -69,11 +69,24 @@ syncRefs(() => transaction.value?.data.status, newStatus);
 const newImage = ref(transaction.value?.data.items[0].imageOut);
 syncRefs(() => transaction.value?.data.items[0].imageOut, newImage);
 
-const imgInRef = computed(() => transaction.value?.data.items[0].imageIn ? storageRef(storageBucket, transaction.value?.data.items[0].imageIn) : null);
-const imgOutRef = computed(() => transaction.value?.data.items[0].imageOut ? storageRef(storageBucket, transaction.value?.data.items[0].imageOut) : null);
+const imgInRefs = computed(() => transaction.value?.data.items.map(item => item.imageIn ? storageRef(storageBucket, item.imageIn) : null) || []);
+const imgOutRef = computed(() => transaction.value?.data.items.map(item => item.imageOut ? storageRef(storageBucket, item.imageOut) : null) || []);
 
-const { url: imgInUrl } = useStorageFileUrl(imgInRef);
-const { url: imgOutUrl } = useStorageFileUrl(imgOutRef);
+const imgInUrls = ref<(string | null)[]>([]);
+const getImgInUrls = async () => {
+  const results = await Promise.allSettled(imgInRefs.value.map((imgRef) => imgRef && getDownloadURL(imgRef)));
+  imgInUrls.value = results.map((result) => result.status === 'fulfilled' ? result.value : null);
+}
+
+watch(imgInRefs, getImgInUrls, { immediate: true });
+
+const imgOutUrls = ref<(string | null)[]>([]);
+const getImgOutUrls = async () => {
+  const results = await Promise.allSettled(imgOutRef.value.map((imgRef) => imgRef && getDownloadURL(imgRef)));
+  imgOutUrls.value = results.map((result) => result.status === 'fulfilled' ? result.value : null);
+}
+
+watch(imgOutRef, getImgOutUrls, { immediate: true });
 
 const sendInvoiceUrl = computed(() => {
   if (!transaction.value) return 'Required data was not loaded yet';
@@ -163,6 +176,36 @@ const onUpdateImageChange = async (ev: Event) => {
         ...transaction.value?.data.items[0],
         imageOut: uploadedImg?.ref.toString(),
       }],
+      'updatedAt', Timestamp.now(),
+    );
+
+    window.alert('Gambar berhasil diperbarui!');
+  } catch (err: any) {
+    window.alert(`Terjadi kesalahan saat mengunggah gambar. Silakan coba lagi.\n${err.message || String(err)}`);
+    console.error(err);
+  } finally {
+    isLoading.value = false;
+  }
+}
+
+const onItemUpdateImageChange = async (ev: Event, itemIndex: number) => {
+  const file = (ev.target as HTMLInputElement)?.files?.[0] || null;
+
+  if (!file) return;
+
+  isLoading.value = true;
+
+  try {
+    const uploadedImg = await uploadNewImage(file);
+    const finalItems = [...(transaction.value?.data.items || [])];
+
+    finalItems.splice(itemIndex, 1, {
+      ...finalItems[itemIndex],
+      imageOut: uploadedImg?.ref.toString(),
+    });
+
+    await updateDoc(docRef,
+      'items', finalItems,
       'updatedAt', Timestamp.now(),
     );
 
@@ -340,24 +383,37 @@ definePageMeta({
     <md-dialog :open="isImageDialogOpen" @opened="isImageDialogOpen = true" @closed="isImageDialogOpen = false">
       <div slot="headline">Foto Sepatu</div>
       <div slot="content" class="flex flex-col gap-4">
-        <div class="flex flex-col gap-2">
-          <p class="text-label-medium">Before:</p>
-          <img :src="imgInUrl || 'https://placehold.co/400x300?text=Tidak+ada+gambar'" alt="before"
-            class="aspect-4/3 object-cover rounded-$md-sys-shape-corner-large">
-        </div>
+        <template v-for="(_, i) in transaction?.data.items" :key="i">
+          <div class="flex flex-col gap-4">
+            <div class="flex flex-col gap-2">
+              <p class="text-label-medium">#{{ i + 1 }} Before:</p>
+              <img :src="imgInUrls[i] || 'https://placehold.co/400x300?text=Tidak+ada+gambar'" alt="before"
+                class="aspect-4/3 object-cover rounded-$md-sys-shape-corner-large">
+            </div>
 
-        <div class="flex flex-col gap-2">
-          <p class="text-label-medium">After:</p>
-          <img :src="imgOutUrl || 'https://placehold.co/400x300?text=Tidak+ada+gambar'" alt="before"
-            class="aspect-4/3 object-cover rounded-$md-sys-shape-corner-large">
-        </div>
+            <div class="flex flex-col gap-2">
+              <p class="text-label-medium">#{{ i + 1 }} After:</p>
+              <div class="relative">
+                <img :src="imgOutUrls[i] || 'https://placehold.co/400x300?text=Tidak+ada+gambar'" alt="before"
+                  class="aspect-4/3 object-cover rounded-$md-sys-shape-corner-large">
+
+                <div
+                  class="absolute inset-0 flex flex-col justify-center items-center bg-slate-500/50 rounded-$md-sys-shape-corner-large">
+                  <md-filled-tonal-button v-if="user" type="button">
+                    Perbarui gambar
+                    <input type="file" accept=".png,.jpeg,.jpg" name="itemNewImage"
+                      class="absolute inset-0 opacity-0 cursor-pointer" @change="onItemUpdateImageChange($event, i)" />
+                    <md-icon slot="icon">add_photo_alternate</md-icon>
+                  </md-filled-tonal-button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <hr v-if="i < (transaction?.data.items.length || 0) - 1" class="divider" />
+        </template>
       </div>
       <div slot="actions">
-        <md-text-button v-if="user" type="button">
-          Perbarui gambar
-          <input type="file" accept=".png,.jpeg,.jpg" name="itemNewImage"
-            class="absolute inset-0 opacity-0 cursor-pointer" @change="onUpdateImageChange" />
-        </md-text-button>
         <div class="grow" />
         <md-text-button @click="isImageDialogOpen = false;">Tutup</md-text-button>
       </div>
