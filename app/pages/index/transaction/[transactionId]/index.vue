@@ -397,9 +397,9 @@ definePageMeta({
                 <img :src="imgOutUrls[i] || 'https://placehold.co/400x300?text=Tidak+ada+gambar'" alt="before"
                   class="aspect-4/3 object-cover rounded-$md-sys-shape-corner-large">
 
-                <div
+                <div v-if="user"
                   class="absolute inset-0 flex flex-col justify-center items-center bg-slate-500/50 rounded-$md-sys-shape-corner-large">
-                  <md-filled-tonal-button v-if="user" type="button">
+                  <md-filled-tonal-button type="button">
                     Perbarui gambar
                     <input type="file" accept=".png,.jpeg,.jpg" name="itemNewImage"
                       class="absolute inset-0 opacity-0 cursor-pointer" @change="onItemUpdateImageChange($event, i)" />
