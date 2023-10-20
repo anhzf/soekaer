@@ -2,7 +2,7 @@
 import '@material/web/button/filled-button';
 import '@material/web/iconbutton/icon-button';
 import { objectOmit } from '@vueuse/core';
-import type { Component } from 'vue';
+import type { Component } from '#imports';
 import type { RouteLocationRaw } from 'vue-router';
 import { useDrawerToggler } from '../pages/index.vue';
 </script>

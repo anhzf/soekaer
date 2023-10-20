@@ -2,7 +2,7 @@
 import { NuxtLink } from '#components';
 import { breakpointsTailwind } from '@vueuse/core';
 import { signOut } from 'firebase/auth';
-import { RouteLocationRaw } from 'vue-router';
+import type { RouteLocationRaw } from 'vue-router';
 
 export const useDrawerToggler = createGlobalState(() => {
   const user = useCurrentUser();

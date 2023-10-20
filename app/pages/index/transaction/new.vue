@@ -15,8 +15,7 @@ import '@material/web/textfield/outlined-text-field';
 import { doc, query, where } from 'firebase/firestore';
 import { ref as storageRef, uploadBytes } from 'firebase/storage';
 import { useFirebaseStorage } from 'vuefire';
-import { Mutable } from 'utils/types';
-import { TransactionItem } from '@anhzf-soekaer/shared/models';
+import type { TransactionItem } from '@anhzf-soekaer/shared/models';
 
 interface OrderedProduct extends Omit<TransactionItem, 'imageIn'> {
   imageIn: File | null;
@@ -291,7 +290,7 @@ useSeoMeta({
 
             <div class="relative">
               <div class="flex gap-4 items-center">
-                <field-wrapper v-model="customerField.name" v-slot="bindings">
+                <field-wrapper v-model.lazy="customerField.name" v-slot="bindings">
                   <md-outlined-text-field id="newTransaction-customerNameField" label="Nama Pelanggan" name="customerName"
                     :disabled="customerField.id" required class="w-full" v-bind="bindings">
                     <md-icon v-if="customerField.id" slot="leadingicon">person_check</md-icon>
@@ -310,8 +309,9 @@ useSeoMeta({
                 </div>
 
                 <template v-else>
-                  <md-menu-item v-for="opt in customerNameOptions" :key="opt.id" :headline="opt.get('name')"
-                    @click="onCustomerNameSelect(opt)" />
+                  <md-menu-item v-for="opt in customerNameOptions" :key="opt.id" @click="onCustomerNameSelect(opt)">
+                    <div slot="headline">{{ opt.get('name') }}</div>
+                  </md-menu-item>
                 </template>
               </md-menu>
             </div>

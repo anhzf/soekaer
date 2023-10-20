@@ -11,7 +11,6 @@ interface Option {
 }
 </script>
 
-
 <script lang="ts" setup generic="T extends Option">
 interface Props {
   modelValue: string;
@@ -26,6 +25,7 @@ interface Props {
 
 interface Emits {
   (e: 'update:modelValue', value: string): void;
+  (e: 'selected', value: T): void;
 }
 
 const props = defineProps<Props>();
@@ -40,12 +40,13 @@ const selectedOption = computed(() => props.options.find((opt) => opt.value === 
 
 const onSelect = (opt: T) => {
   emit('update:modelValue', opt.value);
+  emit('selected', opt);
 }
 </script>
 
 <template>
   <div class="relative">
-    <field-wrapper :model-value="compModelValue" @update:model-value="$emit('update:modelValue', $event)"
+    <field-wrapper :model-value="compModelValue" @update:model-value="$emit('update:modelValue', $event as string)"
       v-slot="bindings">
       <md-outlined-text-field :id="compInputId" :label="label" :name="inputName" class="w-full"
         v-bind="{ ...fieldAttrs, ...bindings }" @click="selectionRef?.show()" />
@@ -56,8 +57,10 @@ const onSelect = (opt: T) => {
         </div>
 
         <template v-else>
-          <md-menu-item v-for="opt in options" :key="opt.value" :headline="opt.label || opt.value"
-            :supporting-text="opt.subtitle" @click="onSelect(opt)" />
+          <md-menu-item v-for="opt in options" :key="opt.value" @click="onSelect(opt)">
+            <div slot="headline">{{ opt.label || opt.value }}</div>
+            <div slot="supporting-text">{{ opt.subtitle }}</div>
+          </md-menu-item>
         </template>
       </md-menu>
     </field-wrapper>
