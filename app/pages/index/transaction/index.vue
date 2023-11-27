@@ -15,25 +15,27 @@ import '@material/web/menu/menu-item';
 import { deleteDoc, doc, getDocs, orderBy, query, QueryFieldFilterConstraint, Timestamp, where } from 'firebase/firestore';
 
 type DateRange = [to: Date, from: Date];
+
+const reloadCount = useState('reload-counter', () => 0);
+
+const selectedStatus = useState<Record<TransactionStatus, boolean>>('transaction-query-status', () => ({
+  pending: true,
+  wip: true,
+  done: true,
+  delivered: false,
+  canceled: false,
+}));
+const isPaid = useState('transaction-query-isPaid', () => false);
+
+const dateRangeToday: DateRange = [day00(), day24()];
+const dateRangeDefault = dateRangeToday;
+const dateRange = useState<DateRange>('transaction-query-dates', () => [...dateRangeDefault]);
 </script>
 
 <script lang="ts" setup>
 const { data: appSettings } = await useAppSettings();
 
 const isLoading = ref(false);
-
-const selectedStatus = ref<Record<TransactionStatus, boolean>>({
-  pending: true,
-  wip: true,
-  done: true,
-  delivered: false,
-  canceled: false,
-});
-const isPaid = ref(false);
-
-const dateRangeToday: DateRange = [day00(), day24()];
-const dateRangeDefault = dateRangeToday;
-const dateRange = ref<DateRange>([...dateRangeDefault]);
 const isDateRangeToday = computed(() => String(dateRange.value) === String(dateRangeToday));
 
 const transactionQuery = computed(() => {
@@ -42,16 +44,13 @@ const transactionQuery = computed(() => {
     where('isPaid', '==', isPaid.value),
   ] as QueryFieldFilterConstraint[];
 
-
   const statuses = Object.entries(selectedStatus.value)
     .filter(([, selected]) => selected)
     .map(([status]) => status);
   queries.push(where('status', 'in', statuses.length ? statuses : ['nothing']));
 
-  // if (dateRange.value) {
   const [dateFrom, dateTo] = dateRange.value;
   queries.push(where('createdAt', '>', dateFrom), where('createdAt', '<', dateTo));
-  // }
 
   return query(base, ...queries, orderBy('createdAt', 'asc'));
 });
@@ -152,8 +151,17 @@ const onDeleteTransactionClick = async (transaction: Transaction) => {
   }
 }
 
+onActivated(() => {
+  reloadCount.value += 1;
+});
+
 useSeoMeta({
   title: 'Transaksi',
+});
+
+definePageMeta({
+  key: 'transactions',
+  keepalive: true,
 });
 </script>
 
@@ -171,7 +179,7 @@ useSeoMeta({
       <div class="flex items-start gap-4 flex-wrap">
         <section class="grow relative surface min-w-sm flex flex-col gap-4 p-4 rounded-$md-sys-shape-corner-medium">
           <md-elevation style="--md-elevation-level: 1;" />
-          <h2 class="text-label-small on-surface-variant-text">HARI INI</h2>
+          <h2 class="text-label-small on-surface-variant-text">HARI INI {{ reloadCount }}</h2>
 
           <div v-if="isTodayTransactionsPending || isTodayNewCustomersPending" class="flex justify-center">
             <md-circular-progress indeterminate />
