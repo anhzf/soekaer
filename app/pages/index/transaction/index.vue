@@ -1,6 +1,7 @@
 <script lang="ts">
 import { DISPLAY_TRANSACTION_STATUSES } from '@anhzf-soekaer/shared';
-import { Transaction, TRANSACTION_STATUSES, TransactionStatus } from '@anhzf-soekaer/shared/models';
+import { Transaction, TRANSACTION_STATUSES } from '@anhzf-soekaer/shared/models';
+import type { TransactionStatus } from '@anhzf-soekaer/shared/models';
 import { day00, day24 } from '@anhzf-soekaer/shared/utils';
 import '@material/web/button/text-button';
 import '@material/web/checkbox/checkbox';

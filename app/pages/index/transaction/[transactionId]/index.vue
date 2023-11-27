@@ -1,6 +1,6 @@
 <script lang="ts">
 import { DISPLAY_TRANSACTION_STATUSES } from '@anhzf-soekaer/shared';
-import { TransactionStatus } from '@anhzf-soekaer/shared/models';
+import type { TransactionStatus } from '@anhzf-soekaer/shared/models';
 import '@material/web/button/elevated-button';
 import '@material/web/button/filled-button';
 import '@material/web/button/filled-tonal-button';
@@ -127,7 +127,6 @@ const share = () => {
 }
 
 const [hidePhoneNumber, toggleHidePhoneNumber] = useToggle(true);
-const [isImageDialogOpen] = useToggle();
 const [isUpdateStatusDialogOpen] = useToggle();
 
 const isEditable = computed(() => !isLoading.value
@@ -314,17 +313,6 @@ definePageMeta({
                 </td>
               </tr>
               <tr>
-                <th class="text-label-large on-surface-text text-left font-semibold">Foto Sepatu</th>
-                <td>
-                  <div class="flex justify-end items-center gap-2">
-                    <md-filled-tonal-button @click="isImageDialogOpen = true;">
-                      <md-icon slot="icon">visibility</md-icon>
-                      Lihat
-                    </md-filled-tonal-button>
-                  </div>
-                </td>
-              </tr>
-              <tr>
                 <th class="text-label-large on-surface-text text-left align-top font-semibold">Total Tagihan</th>
                 <td class="text-display-small secondary-text text-right">{{ fmtCurrency(transaction.billedAmount) }}</td>
               </tr>
@@ -333,6 +321,43 @@ definePageMeta({
             <p class="text-body-small on-surface-variant-text text-center italic">
               Terakhir diperbarui: <time>{{ fmtDateTime(transaction.data.updatedAt.toDate()) }}</time>
             </p>
+
+            <hr class="divider" />
+
+            <div class="flex flex-col gap-4">
+              <h2 class="text-headline-small mb-2">
+                Foto Sepatu
+              </h2>
+
+              <template v-for="(_, i) in transaction?.data.items" :key="i">
+                <div class="flex flex-col gap-4">
+                  <div class="flex flex-col gap-2">
+                    <p class="text-label-medium">#{{ i + 1 }} Before:</p>
+                    <img :src="imgInUrls[i] || 'https://placehold.co/400x300?text=Tidak+ada+gambar'" alt="before"
+                      class="aspect-4/3 object-cover rounded-$md-sys-shape-corner-large">
+                  </div>
+
+                  <div class="flex flex-col gap-2">
+                    <p class="text-label-medium">#{{ i + 1 }} After:</p>
+                    <div class="relative aspect-4/3">
+                      <img :src="imgOutUrls[i] || 'https://placehold.co/400x300?text=Tidak+ada+gambar'" alt="before"
+                        class="w-full h-full object-cover rounded-$md-sys-shape-corner-large">
+
+                      <div v-if="user"
+                        class="absolute inset-0 flex flex-col justify-center items-center bg-slate-500/50 rounded-$md-sys-shape-corner-large">
+                        <md-filled-tonal-button type="button">
+                          Perbarui gambar
+                          <input type="file" accept=".png,.jpeg,.jpg" name="itemNewImage"
+                            class="absolute inset-0 opacity-0 cursor-pointer"
+                            @change="onItemUpdateImageChange($event, i)" />
+                          <md-icon slot="icon">add_photo_alternate</md-icon>
+                        </md-filled-tonal-button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </template>
+            </div>
           </div>
         </div>
 
@@ -379,45 +404,6 @@ definePageMeta({
         </md-filled-button>
       </div>
     </main>
-
-    <md-dialog :open="isImageDialogOpen" @opened="isImageDialogOpen = true" @closed="isImageDialogOpen = false">
-      <div slot="headline">Foto Sepatu</div>
-      <div slot="content" class="flex flex-col gap-4">
-        <template v-for="(_, i) in transaction?.data.items" :key="i">
-          <div class="flex flex-col gap-4">
-            <div class="flex flex-col gap-2">
-              <p class="text-label-medium">#{{ i + 1 }} Before:</p>
-              <img :src="imgInUrls[i] || 'https://placehold.co/400x300?text=Tidak+ada+gambar'" alt="before"
-                class="aspect-4/3 object-cover rounded-$md-sys-shape-corner-large">
-            </div>
-
-            <div class="flex flex-col gap-2">
-              <p class="text-label-medium">#{{ i + 1 }} After:</p>
-              <div class="relative">
-                <img :src="imgOutUrls[i] || 'https://placehold.co/400x300?text=Tidak+ada+gambar'" alt="before"
-                  class="aspect-4/3 object-cover rounded-$md-sys-shape-corner-large">
-
-                <div v-if="user"
-                  class="absolute inset-0 flex flex-col justify-center items-center bg-slate-500/50 rounded-$md-sys-shape-corner-large">
-                  <md-filled-tonal-button type="button">
-                    Perbarui gambar
-                    <input type="file" accept=".png,.jpeg,.jpg" name="itemNewImage"
-                      class="absolute inset-0 opacity-0 cursor-pointer" @change="onItemUpdateImageChange($event, i)" />
-                    <md-icon slot="icon">add_photo_alternate</md-icon>
-                  </md-filled-tonal-button>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <hr v-if="i < (transaction?.data.items.length || 0) - 1" class="divider" />
-        </template>
-      </div>
-      <div slot="actions">
-        <div class="grow" />
-        <md-text-button @click="isImageDialogOpen = false;">Tutup</md-text-button>
-      </div>
-    </md-dialog>
 
     <md-dialog :open="isUpdateStatusDialogOpen" @opened="isUpdateStatusDialogOpen = true"
       @closed="onUpdateStatusDialogClose">
